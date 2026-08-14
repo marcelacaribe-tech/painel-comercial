@@ -358,7 +358,10 @@ const CLIENTS = [
   {
     id: "alfenas",
     agendorId: "000000",
+    agendorUrl: "https://web.agendor.com.br/sistema/empresas/historico.php?id=31897748",
     pastaDriveUrl: "https://drive.google.com/drive/u/0/folders/1YL6XBNLuUA3Fr8WJzbIBTZEYglqejBba",
+    cnpj: "18.243.220/0001-01",
+    advogadoInterno: "Marcela Caribé",
     tipo: "publico",
     nome: "Município de Alfenas",
     esfera: "Município",
@@ -5565,10 +5568,13 @@ export default function PainelCliente() {
         }
         .painel-comercial-app, .painel-comercial-app * {
           font-family: 'Kamerik105Bold', sans-serif;
-          letter-spacing: 0.02em;
+          letter-spacing: 0.03em;
         }
         .painel-comercial-app h1, .painel-comercial-app h2 {
-          letter-spacing: 0.03em;
+          letter-spacing: 0.045em;
+        }
+        .painel-comercial-app .text-xs, .painel-comercial-app .text-xs * {
+          letter-spacing: 0.035em;
         }
       `;
       document.head.appendChild(style);
