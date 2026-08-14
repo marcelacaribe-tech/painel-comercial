@@ -361,7 +361,7 @@ const CLIENTS = [
     pastaDriveUrl: "https://drive.google.com/drive/u/0/folders/1YL6XBNLuUA3Fr8WJzbIBTZEYglqejBba",
     tipo: "publico",
     nome: "Município de Alfenas",
-    esfera: "Municipal",
+    esfera: "Município",
     responsavel: "Matriz",
     uf: "MG",
     orgao: "Secretaria de Fazenda",
@@ -525,7 +525,7 @@ const CLIENTS = [
     pastaDriveUrl: "", // TODO: preencher com o link direto da pasta do cliente no Google Drive (Filiais e Franquias)
     tipo: "publico",
     nome: "Município de Bandeira",
-    esfera: "Municipal",
+    esfera: "Município",
     responsavel: "Matriz",
     uf: "MG",
     orgao: "",
@@ -5565,6 +5565,10 @@ export default function PainelCliente() {
         }
         .painel-comercial-app, .painel-comercial-app * {
           font-family: 'Kamerik105Bold', sans-serif;
+          letter-spacing: 0.02em;
+        }
+        .painel-comercial-app h1, .painel-comercial-app h2 {
+          letter-spacing: 0.03em;
         }
       `;
       document.head.appendChild(style);
