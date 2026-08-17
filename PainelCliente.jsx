@@ -1293,7 +1293,7 @@ function ContactsModal({ client, onClose, onAdd, onEdit, onDelete, podeEditar })
             ) : (
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium" style={{ color: INK }}>{c.nome}</p>
+                  <p className="text-sm font-medium" style={{ color: INK, fontFamily: TITULO_FONT_FAMILY }}>{c.nome}</p>
                   <p className="text-xs" style={{ color: "#6B7280" }}>{c.cargo}</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1934,6 +1934,7 @@ function ClientList({ tipo, setTipo, onSelect }) {
               background: tipo === t ? "white" : "transparent",
               color: tipo === t ? INK : "#6B7280",
               boxShadow: tipo === t ? "0 0 0 1px #DCE3E0" : "none",
+              fontFamily: TITULO_FONT_FAMILY,
             }}
           >
             {t === "publico" ? "Público" : t === "privado" ? "Privado" : "Entidades de classe"}
@@ -1975,7 +1976,7 @@ function ClientList({ tipo, setTipo, onSelect }) {
                 <Building2 size={20} style={{ color: "#6B7280" }} />
               )}
               <div>
-                <p className="text-sm font-medium flex items-center gap-1.5" style={{ color: INK }}>
+                <p className="text-sm font-medium flex items-center gap-1.5" style={{ color: INK, fontFamily: TITULO_FONT_FAMILY }}>
                   {c.nome}
                   {(c.processos || []).some((p) => p.estrategico) && (
                     <EstrategicoBadge />
@@ -5566,15 +5567,9 @@ export default function PainelCliente() {
           font-style: normal;
           font-display: swap;
         }
-        .painel-comercial-app, .painel-comercial-app * {
+        .painel-comercial-app h1, .painel-comercial-app h2, .painel-comercial-app h3 {
           font-family: 'Kamerik105Bold', sans-serif;
-          letter-spacing: 0.03em;
-        }
-        .painel-comercial-app h1, .painel-comercial-app h2 {
           letter-spacing: 0.045em;
-        }
-        .painel-comercial-app .text-xs, .painel-comercial-app .text-xs * {
-          letter-spacing: 0.035em;
         }
       `;
       document.head.appendChild(style);
