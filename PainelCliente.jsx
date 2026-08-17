@@ -1105,6 +1105,17 @@ function currency(v) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Reduz a fonte de um valor grande em degraus, para caber numa linha só
+// dentro do cartão, sem quebrar ou vazar do quadro — usando clamp() para que
+// o tamanho também se ajuste proporcionalmente à largura da tela (celular).
+function fontSizeParaValor(texto) {
+  const len = String(texto).length;
+  if (len > 20) return "clamp(0.65rem, 3.2vw, 0.85rem)";
+  if (len > 17) return "clamp(0.7rem, 3.6vw, 0.95rem)";
+  if (len > 14) return "clamp(0.75rem, 4vw, 1.05rem)";
+  return "clamp(0.8rem, 4.6vw, 1.25rem)";
+}
+
 function formatarCNPJ(valor) {
   const digitos = String(valor || "").replace(/\D/g, "").slice(0, 14);
   if (digitos.length <= 2) return digitos;
@@ -2570,13 +2581,23 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
-          <div className="rounded p-3" style={{ background: "#EAF1EE", borderLeft: "3px solid #0C447C" }}>
-            <p className="text-xs" style={{ color: "#6B7280" }}>Valor total em processos judiciais</p>
-            <p className="text-xl font-medium mt-1" style={{ color: INK }}>{currency(valorTotalJudiciais)}</p>
+          <div className="rounded p-3 overflow-hidden" style={{ background: "#EAF1EE", borderLeft: "3px solid #0C447C" }}>
+            <p className="text-xs whitespace-nowrap" style={{ color: "#6B7280" }}>Valor - Processos Judiciais</p>
+            <p
+              className="font-medium mt-1 whitespace-nowrap"
+              style={{ color: INK, fontSize: fontSizeParaValor(currency(valorTotalJudiciais)) }}
+            >
+              {currency(valorTotalJudiciais)}
+            </p>
           </div>
-          <div className="rounded p-3" style={{ background: "#EAF1EE", borderLeft: "3px solid #93450A" }}>
-            <p className="text-xs" style={{ color: "#6B7280" }}>Valor total em processos administrativos</p>
-            <p className="text-xl font-medium mt-1" style={{ color: INK }}>{currency(valorTotalAdministrativos)}</p>
+          <div className="rounded p-3 overflow-hidden" style={{ background: "#EAF1EE", borderLeft: "3px solid #93450A" }}>
+            <p className="text-xs whitespace-nowrap" style={{ color: "#6B7280" }}>Valor - Processos Administrativos</p>
+            <p
+              className="font-medium mt-1 whitespace-nowrap"
+              style={{ color: INK, fontSize: fontSizeParaValor(currency(valorTotalAdministrativos)) }}
+            >
+              {currency(valorTotalAdministrativos)}
+            </p>
           </div>
           <div className="rounded p-3" style={{ background: "#EAF1EE", borderLeft: "3px solid #534AB7" }}>
             <p className="text-xs" style={{ color: "#6B7280" }}>Precatórios expedidos</p>
