@@ -125,9 +125,29 @@ const STATUS_OPTIONS_COMPREV = [
 ];
 
 const STATUS_OPTIONS_MEDICAMENTOS = [
-  "Diagnóstico",
-  "Cadastro no InvestSUS pendente",
-  "Requerimento protocolado",
+  "Aguardando o Município",
+  "Aguardando o Resp. Comercial",
+  "Pendente cadastro realizado no INVESTSUS",
+  "Cadastro realizado no INVESTSUS",
+  "INVESTSUS liberado pelo Sec. Saúde",
+  "Realizado Pedido de Ressarcimento",
+  "Pedido deferido",
+  "Pedido Indeferido",
+  "Recebido",
+  "Pendente honorários",
+  "Encerrado",
+];
+
+const STATUS_OPTIONS_INSS_VERBAS_ADM = [
+  "Aguardando o Município",
+  "Aguardando o Resp. Comercial",
+  "Aguardando o Parceiro",
+  "Enviado ao Parceiro",
+  "Aguardando Auditoria Interna",
+  "Crédito Apurado",
+  "Crédito Compensado",
+  "Pedido de Restituição",
+  "Distribuído Cumprimento de Sentença",
 ];
 
 function opcoesStatus(tipoProcesso, tipoAcao, materia) {
@@ -143,6 +163,19 @@ function opcoesStatus(tipoProcesso, tipoAcao, materia) {
 // mantido por compatibilidade onde só o tipo de ação é conhecido
 function opcoesStatusPorTipoAcao(tipoAcao) {
   return opcoesStatus(null, tipoAcao);
+}
+
+// Para a matéria IRRF, quando há pendência documental sinalizada, o processo
+// passa a acompanhar o mesmo fluxo de apuração/compensação usado no INSS
+// Verbas Indenizatórias — por isso esses status extras são acrescentados
+// (sem remover os status normais já usados para IRRF).
+function opcoesStatusComExtrasIrrf(tipoProcesso, tipoAcao, materia, temPendenciaDocumental) {
+  const base = opcoesStatus(tipoProcesso, tipoAcao, materia);
+  if (materia === "IRRF" && temPendenciaDocumental) {
+    const extras = STATUS_OPTIONS_INSS_VERBAS_ADM.filter((s) => !base.includes(s));
+    return [...base, ...extras];
+  }
+  return base;
 }
 
 const STATUS_COLOR = {
@@ -195,9 +228,26 @@ const STATUS_COLOR = {
   "Acessos e/ou documentos pendentes": { bg: "#FDECEC", text: "#A85A52" },
   "Análise e inserção": { bg: "#FEF3E2", text: "#93450A" },
   "Pastas pendentes de análise (Inserção completa)": { bg: "#E6F1FB", text: "#0C447C" },
-  "Diagnóstico": { bg: "#EEF0F4", text: "#475569" },
-  "Cadastro no InvestSUS pendente": { bg: "#FEF3E2", text: "#93450A" },
-  "Requerimento protocolado": { bg: "#E6F1FB", text: "#0C447C" },
+  "Aguardando o Município": { bg: "#FEF3E2", text: "#93450A" },
+  "Aguardando o Resp. Comercial": { bg: "#FEF3E2", text: "#93450A" },
+  "Pendente cadastro realizado no INVESTSUS": { bg: "#FEF3E2", text: "#93450A" },
+  "Cadastro realizado no INVESTSUS": { bg: "#E6F1FB", text: "#0C447C" },
+  "INVESTSUS liberado pelo Sec. Saúde": { bg: "#E6F1FB", text: "#0C447C" },
+  "Realizado Pedido de Ressarcimento": { bg: "#E6F1FB", text: "#0C447C" },
+  "Pedido deferido": { bg: "#EAF6EE", text: "#1E6B3D" },
+  "Pedido Indeferido": { bg: "#FDECEC", text: "#A85A52" },
+  "Recebido": { bg: "#EAF6EE", text: "#1E6B3D" },
+  "Pendente honorários": { bg: "#FEF3E2", text: "#93450A" },
+  "Encerrado": { bg: "#EEF0F4", text: "#475569" },
+  "Aguardando o Município": { bg: "#FEF3E2", text: "#93450A" },
+  "Aguardando o Resp. Comercial": { bg: "#FEF3E2", text: "#93450A" },
+  "Aguardando o Parceiro": { bg: "#FEF3E2", text: "#93450A" },
+  "Enviado ao Parceiro": { bg: "#E6F1FB", text: "#0C447C" },
+  "Aguardando Auditoria Interna": { bg: "#E6F1FB", text: "#0C447C" },
+  "Crédito Apurado": { bg: "#EAF6EE", text: "#1E6B3D" },
+  "Crédito Compensado": { bg: "#EAF6EE", text: "#1E6B3D" },
+  "Pedido de Restituição": { bg: "#E6F1FB", text: "#0C447C" },
+  "Distribuído Cumprimento de Sentença": { bg: "#E6F1FB", text: "#0C447C" },
 };
 
 const MATERIA_CATALOG = [
@@ -612,6 +662,8 @@ const CLIENTS = [
         patrono: "Monteiro e Monteiro Advogados",
         origem: "Receita Federal do Brasil",
         localizacaoAtual: "Receita Federal do Brasil",
+        pendenciaDocumentacaoInss: true,
+        statusDocumentacaoInss: "Aguardando o Parceiro",
         objeto: "Habilitação administrativa do crédito relativo às contribuições previdenciárias patronais recolhidas indevidamente sobre verbas de natureza indenizatória, para fins de restituição/compensação junto à Receita Federal.",
       },
       {
@@ -628,7 +680,7 @@ const CLIENTS = [
       {
         numero: "",
         materia: "Medicamentos",
-        status: "Diagnóstico",
+        status: "Cadastro realizado no INVESTSUS",
         tipo: "Administrativo",
         tipoAcao: "Pedido de Restituição",
         patrono: "Monteiro e Monteiro Advogados",
@@ -2250,7 +2302,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
       </button>
 
       <div className="bg-white rounded-xl border p-6" style={{ borderColor: "#DCE3E0" }}>
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
           <div>
             <h2 className="text-lg" style={{ color: INK, fontFamily: TITULO_FONT_FAMILY, fontWeight: "bold" }}>{client.nome}</h2>
             <p className="text-sm mt-1" style={{ color: "#6B7280" }}>{client.esfera} · {client.uf}</p>
@@ -2273,7 +2325,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
               </div>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {client.pastaDriveUrl ? (
               podeEditarContratos ? (
                 <a
@@ -2281,7 +2333,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => { setEditandoPastaDrive(true); setRascunhoPastaDrive(client.pastaDriveUrl || ""); }}
-                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border"
+                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border whitespace-nowrap"
                   style={{ borderColor: "#DCE3E0" }}
                 >
                   <FolderOpen size={15} /> Pasta no Drive
@@ -2291,7 +2343,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                   href={client.pastaDriveUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border"
+                  className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border whitespace-nowrap"
                   style={{ borderColor: "#DCE3E0" }}
                 >
                   <FolderOpen size={15} /> Pasta no Drive
@@ -2300,14 +2352,14 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
             ) : podeEditarContratos ? (
               <button
                 onClick={() => { setEditandoPastaDrive(!editandoPastaDrive); setRascunhoPastaDrive(""); }}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border"
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border whitespace-nowrap"
                 style={{ borderColor: "#DCE3E0" }}
               >
                 <FolderOpen size={15} /> Adicionar link do Drive
               </button>
             ) : (
               <span
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border"
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border whitespace-nowrap"
                 style={{ borderColor: "#DCE3E0", color: "#9CA3AF" }}
                 title="Link da pasta no Google Drive (Filiais e Franquias) ainda não cadastrado"
               >
@@ -2320,7 +2372,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => { if (podeEditarContratos) { setEditandoAgendor(true); setRascunhoAgendorUrl(client.agendorUrl || ""); } }}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border"
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border whitespace-nowrap"
                 style={{ borderColor: "#DCE3E0" }}
               >
                 <ExternalLink size={15} /> Agendor
@@ -2328,21 +2380,21 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
             ) : podeEditarContratos ? (
               <button
                 onClick={() => { setEditandoAgendor(!editandoAgendor); setRascunhoAgendorUrl(""); }}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border"
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border whitespace-nowrap"
                 style={{ borderColor: "#DCE3E0" }}
               >
                 <ExternalLink size={15} /> Adicionar link do Agendor
               </button>
             ) : (
               <span
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border"
+                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded border whitespace-nowrap"
                 style={{ borderColor: "#DCE3E0", color: "#9CA3AF" }}
                 title="Link do Agendor ainda não cadastrado"
               >
                 <ExternalLink size={15} /> Agendor
               </span>
             )}
-            <span className="text-xs px-3 py-1.5 rounded self-center" style={{ background: "#EAF6EE", color: "#1E6B3D" }}>
+            <span className="text-xs px-3 py-1.5 rounded self-center whitespace-nowrap" style={{ background: "#EAF6EE", color: "#1E6B3D" }}>
               Cliente ativo
             </span>
           </div>
@@ -2581,8 +2633,8 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
-          <div className="rounded p-3 overflow-hidden" style={{ background: "#EAF1EE", borderLeft: "3px solid #0C447C" }}>
-            <p className="text-xs whitespace-nowrap" style={{ color: "#6B7280" }}>Valor - Processos Judiciais</p>
+          <div className="rounded p-3 min-w-0" style={{ background: "#EAF1EE", borderLeft: "3px solid #0C447C" }}>
+            <p className="text-xs" style={{ color: "#6B7280" }}>Valor - Processos Judiciais</p>
             <p
               className="font-medium mt-1 whitespace-nowrap"
               style={{ color: INK, fontSize: fontSizeParaValor(currency(valorTotalJudiciais)) }}
@@ -2590,8 +2642,8 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
               {currency(valorTotalJudiciais)}
             </p>
           </div>
-          <div className="rounded p-3 overflow-hidden" style={{ background: "#EAF1EE", borderLeft: "3px solid #93450A" }}>
-            <p className="text-xs whitespace-nowrap" style={{ color: "#6B7280" }}>Valor - Processos Administrativos</p>
+          <div className="rounded p-3 min-w-0" style={{ background: "#EAF1EE", borderLeft: "3px solid #93450A" }}>
+            <p className="text-xs" style={{ color: "#6B7280" }}>Valor - Processos Administrativos</p>
             <p
               className="font-medium mt-1 whitespace-nowrap"
               style={{ color: INK, fontSize: fontSizeParaValor(currency(valorTotalAdministrativos)) }}
@@ -2599,15 +2651,15 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
               {currency(valorTotalAdministrativos)}
             </p>
           </div>
-          <div className="rounded p-3" style={{ background: "#EAF1EE", borderLeft: "3px solid #534AB7" }}>
+          <div className="rounded p-3 min-w-0" style={{ background: "#EAF1EE", borderLeft: "3px solid #534AB7" }}>
             <p className="text-xs" style={{ color: "#6B7280" }}>Precatórios expedidos</p>
             <p className="text-xl font-medium mt-1" style={{ color: INK }}>{precatoriosExpedidosCount}</p>
           </div>
-          <div className="rounded p-3" style={{ background: "#EAF1EE", borderLeft: "3px solid #1E6B3D" }}>
+          <div className="rounded p-3 min-w-0" style={{ background: "#EAF1EE", borderLeft: "3px solid #1E6B3D" }}>
             <p className="text-xs" style={{ color: "#6B7280" }}>Processos ativos</p>
             <p className="text-xl font-medium mt-1" style={{ color: INK }}>{processosAtivosCount}</p>
           </div>
-          <div className="rounded p-3" style={{ background: "#EAF1EE", borderLeft: "3px solid #6B7280" }}>
+          <div className="rounded p-3 min-w-0" style={{ background: "#EAF1EE", borderLeft: "3px solid #6B7280" }}>
             <p className="text-xs" style={{ color: "#6B7280" }}>Contratos</p>
             <p className="text-xl font-medium mt-1" style={{ color: INK }}>{(client.contratos || []).length}</p>
           </div>
@@ -2657,6 +2709,12 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                     {client.tipo !== "entidade" && (
                       <p><span style={{ color: "#6B7280" }}>Precatório expedido:</span> {campoProcesso(p, "precatorios", i).length > 0 ? "Sim" : "Não"}</p>
                     )}
+                    {p.materia === "IRRF" && campoProcesso(p, "pendenciaDocumentacaoIrrf", i) && (
+                      <div className="flex items-center gap-1.5 rounded px-2 py-1.5" style={{ background: "#FEF3E2", color: "#93450A" }}>
+                        <AlertTriangle size={14} /> Pendência de documentação para o IRRF
+                        {campoProcesso(p, "statusDocumentacaoIrrf", i) && ` — ${campoProcesso(p, "statusDocumentacaoIrrf", i)}`}
+                      </div>
+                    )}
                     <button
                       onClick={() => setDetalhesAbertos((prev) => ({ ...prev, [i]: !prev[i] }))}
                       className="text-xs px-2 py-1 rounded border"
@@ -2666,6 +2724,30 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                     </button>
                     {detalhesAbertos[i] && (
                     <>
+                    {p.materia === "IRRF" && editandoProcesso[i] && (
+                      <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!campoProcesso(p, "pendenciaDocumentacaoIrrf", i)}
+                          onChange={(e) => atualizarCampoProcesso(i, "pendenciaDocumentacaoIrrf", e.target.checked)}
+                        />
+                        Sinalizar pendência de documentação
+                      </label>
+                    )}
+                    {p.materia === "IRRF" && campoProcesso(p, "pendenciaDocumentacaoIrrf", i) && editandoProcesso[i] && (
+                      <div className="rounded p-2 space-y-1" style={{ background: "#FEF3E2" }}>
+                        <p style={{ color: "#93450A" }}>Documentação</p>
+                        <select
+                          value={campoProcesso(p, "statusDocumentacaoIrrf", i)}
+                          onChange={(e) => atualizarCampoProcesso(i, "statusDocumentacaoIrrf", e.target.value)}
+                          className="w-full text-xs border rounded px-2 py-1"
+                          style={{ borderColor: "#DCE3E0" }}
+                        >
+                          <option value="">Selecione o status da documentação...</option>
+                          {STATUS_OPTIONS_INSS_VERBAS_ADM.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
                     {client.tipo !== "publico" && TIPOS_ACAO_COM_LAUDO.includes(campoProcesso(p, "tipoAcao", i)) && campoProcesso(p, "responsavelLaudo", i) && (
                       <p><span style={{ color: "#6B7280" }}>Responsável pelo laudo:</span> {campoProcesso(p, "responsavelLaudo", i)}</p>
                     )}
@@ -3189,6 +3271,49 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                     </>
                     )}
 
+                    {p.materia === "IRRF" && campoProcesso(p, "pendenciaDocumentacaoIrrf", i) && (
+                      <div className="flex items-center gap-1.5 rounded px-2 py-1.5" style={{ background: "#FEF3E2", color: "#93450A" }}>
+                        <AlertTriangle size={14} /> Pendência de documentação para o IRRF.
+                      </div>
+                    )}
+
+                    {p.materia === "INSS – Verbas Indenizatórias" && (
+                      <div className="space-y-1.5">
+                        <div>
+                          <span style={{ color: "#6B7280" }}>Tese/Rubrica a serem apuradas: </span>
+                          {editandoProcesso[i] ? (
+                            <input
+                              value={campoProcesso(p, "teseRubrica", i)}
+                              onChange={(e) => atualizarCampoProcesso(i, "teseRubrica", e.target.value)}
+                              placeholder="Ex.: Terço de férias, horas extras, auxílio-doença..."
+                              className="text-xs border rounded px-2 py-1 mt-1 w-full"
+                              style={{ borderColor: "#DCE3E0" }}
+                            />
+                          ) : (
+                            <span style={{ color: INK }}>{campoProcesso(p, "teseRubrica", i) || "não informado"}</span>
+                          )}
+                        </div>
+
+                        {campoProcesso(p, "pendenciaDocumentacaoInss", i) && (
+                          <div className="flex items-center gap-1.5 rounded px-2 py-1.5" style={{ background: "#FEF3E2", color: "#93450A" }}>
+                            <AlertTriangle size={14} /> Pendência de documentação para apuração do crédito
+                            {campoProcesso(p, "statusDocumentacaoInss", i) && ` — ${campoProcesso(p, "statusDocumentacaoInss", i)}`}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {p.materia === "SAT" && (
+                      <div className="space-y-1.5">
+                        {campoProcesso(p, "pendenciaDocumentacaoSat", i) && (
+                          <div className="flex items-center gap-1.5 rounded px-2 py-1.5" style={{ background: "#FEF3E2", color: "#93450A" }}>
+                            <AlertTriangle size={14} /> Pendência de documentação para apuração do crédito
+                            {campoProcesso(p, "statusDocumentacaoSat", i) && ` — ${campoProcesso(p, "statusDocumentacaoSat", i)}`}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {p.materia === "COMPREV" && (
                       <div className="space-y-3">
                         <div>
@@ -3688,7 +3813,97 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                     </button>
                     {detalhesAbertos[i] && (
                     <>
-                    {client.tipo !== "publico" && TIPOS_ACAO_COM_LAUDO.includes(campoProcesso(p, "tipoAcao", i)) && campoProcesso(p, "responsavelLaudo", i) && (
+                    {p.materia === "IRRF" && editandoProcesso[i] && (
+                      <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!campoProcesso(p, "pendenciaDocumentacaoIrrf", i)}
+                          onChange={(e) => atualizarCampoProcesso(i, "pendenciaDocumentacaoIrrf", e.target.checked)}
+                        />
+                        Sinalizar pendência de documentação
+                      </label>
+                    )}
+                    {p.materia === "INSS – Verbas Indenizatórias" && editandoProcesso[i] && (
+                      <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!campoProcesso(p, "pendenciaDocumentacaoInss", i)}
+                          onChange={(e) => atualizarCampoProcesso(i, "pendenciaDocumentacaoInss", e.target.checked)}
+                        />
+                        Sinalizar pendência de documentação
+                      </label>
+                    )}
+                    {p.materia === "INSS – Verbas Indenizatórias" && campoProcesso(p, "pendenciaDocumentacaoInss", i) && editandoProcesso[i] && (
+                      <div className="rounded p-2 space-y-1" style={{ background: "#FEF3E2" }}>
+                        <p style={{ color: "#93450A" }}>Documentação</p>
+                        <select
+                          value={campoProcesso(p, "statusDocumentacaoInss", i)}
+                          onChange={(e) => atualizarCampoProcesso(i, "statusDocumentacaoInss", e.target.value)}
+                          className="w-full text-xs border rounded px-2 py-1"
+                          style={{ borderColor: "#DCE3E0" }}
+                        >
+                          <option value="">Selecione o status da documentação...</option>
+                          {STATUS_OPTIONS_INSS_VERBAS_ADM.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {p.materia === "SAT" && editandoProcesso[i] && (
+                      <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                        <input
+                          type="checkbox"
+                          checked={!!campoProcesso(p, "pendenciaDocumentacaoSat", i)}
+                          onChange={(e) => atualizarCampoProcesso(i, "pendenciaDocumentacaoSat", e.target.checked)}
+                        />
+                        Sinalizar pendência de documentação
+                      </label>
+                    )}
+                    {p.materia === "SAT" && campoProcesso(p, "pendenciaDocumentacaoSat", i) && editandoProcesso[i] && (
+                      <div className="rounded p-2 space-y-1" style={{ background: "#FEF3E2" }}>
+                        <p style={{ color: "#93450A" }}>Documentação</p>
+                        <select
+                          value={campoProcesso(p, "statusDocumentacaoSat", i)}
+                          onChange={(e) => atualizarCampoProcesso(i, "statusDocumentacaoSat", e.target.value)}
+                          className="w-full text-xs border rounded px-2 py-1"
+                          style={{ borderColor: "#DCE3E0" }}
+                        >
+                          <option value="">Selecione o status da documentação...</option>
+                          {STATUS_OPTIONS_INSS_VERBAS_ADM.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                    )}
+                    {(p.materia === "INSS – Verbas Indenizatórias" || p.materia === "SAT") && (
+                      <>
+                        <div>
+                          <span style={{ color: "#6B7280" }}>Responsável pelo laudo: </span>
+                          {editandoProcesso[i] ? (
+                            <input
+                              value={campoProcesso(p, "responsavelLaudo", i)}
+                              onChange={(e) => atualizarCampoProcesso(i, "responsavelLaudo", e.target.value)}
+                              placeholder="Nome do responsável/parceiro pelo laudo"
+                              className="text-xs border rounded px-2 py-1 mt-1 w-full"
+                              style={{ borderColor: "#DCE3E0" }}
+                            />
+                          ) : (
+                            <span style={{ color: INK }}>{campoProcesso(p, "responsavelLaudo", i) || "não informado"}</span>
+                          )}
+                        </div>
+                        <div>
+                          <span style={{ color: "#6B7280" }}>Data de envio dos documentos ao parceiro: </span>
+                          {editandoProcesso[i] ? (
+                            <input
+                              value={campoProcesso(p, "dataEnvioDocumentosLaudo", i)}
+                              onChange={(e) => atualizarCampoProcesso(i, "dataEnvioDocumentosLaudo", e.target.value)}
+                              placeholder="Ex.: 10/06/2026"
+                              className="text-xs border rounded px-2 py-1 mt-1 w-full"
+                              style={{ borderColor: "#DCE3E0" }}
+                            />
+                          ) : (
+                            <span style={{ color: INK }}>{campoProcesso(p, "dataEnvioDocumentosLaudo", i) || "não informada"}</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    {p.materia !== "INSS – Verbas Indenizatórias" && p.materia !== "SAT" && client.tipo !== "publico" && TIPOS_ACAO_COM_LAUDO.includes(campoProcesso(p, "tipoAcao", i)) && campoProcesso(p, "responsavelLaudo", i) && (
                       <p><span style={{ color: "#6B7280" }}>Responsável pelo laudo:</span> {campoProcesso(p, "responsavelLaudo", i)}</p>
                     )}
                     {p.materia !== "Securitização" && p.materia !== "COMPREV" && p.materia !== "Medicamentos" && (
@@ -3727,7 +3942,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                               className="w-full text-xs border rounded px-2 py-1"
                               style={{ borderColor: "#DCE3E0" }}
                             >
-                              {opcoesStatus(p.tipo, campoProcesso(p, "tipoAcao", i), p.materia).map((s) => <option key={s} value={s}>{s}</option>)}
+                              {opcoesStatusComExtrasIrrf(p.tipo, campoProcesso(p, "tipoAcao", i), p.materia, campoProcesso(p, "pendenciaDocumentacaoIrrf", i)).map((s) => <option key={s} value={s}>{s}</option>)}
                             </select>
                           </div>
                           <div className="col-span-2">
@@ -5841,7 +6056,7 @@ export default function PainelCliente() {
       <div className="flex items-center px-6" style={{ background: INK, height: 56 }}>
         <img src="data:image/png;base64,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" alt="Monteiro e Monteiro Advogados Associados" style={{ height: 28, width: "auto" }} />
       </div>
-      <div className="max-w-3xl mx-auto pt-4 px-4 flex justify-end items-center gap-2">
+      <div className="max-w-3xl mx-auto pt-4 px-4 flex flex-wrap justify-end items-center gap-2">
         {papel === "advogado" && (
           <select
             value={advogadoLogado}
