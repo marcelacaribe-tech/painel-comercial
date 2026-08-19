@@ -150,10 +150,32 @@ const STATUS_OPTIONS_INSS_VERBAS_ADM = [
   "Distribuído Cumprimento de Sentença",
 ];
 
+// Status do fluxo de ISSQN executado pelo parceiro CGD Analytics, com base
+// no relatório semanal de acompanhamento de contratos municipais.
+const STATUS_OPTIONS_ISSQN = [
+  "Em análise técnica",
+  "Ponto de atenção técnico",
+  "Pendente de retorno",
+  "Aguardando envio de informações",
+  "Base de dados recebida",
+  "Reunião agendada",
+  "Base parcial recebida",
+  "Não Iniciado",
+  "Iniciado",
+  "Recebimento parcial",
+  "Pendência financeira",
+  "Encerrado",
+];
+
+// Opções para o campo "Situação atual" do ISSQN — mesma lista de status,
+// exceto "Recebimento parcial" (que só se aplica ao Status geral).
+const SITUACAO_ATUAL_OPTIONS_ISSQN = STATUS_OPTIONS_ISSQN.filter((s) => s !== "Recebimento parcial");
+
 function opcoesStatus(tipoProcesso, tipoAcao, materia) {
   if (materia === "Securitização") return STATUS_OPTIONS_SECURITIZACAO;
   if (materia === "COMPREV") return STATUS_OPTIONS_COMPREV;
   if (materia === "Medicamentos") return STATUS_OPTIONS_MEDICAMENTOS;
+  if (materia === "ISSQN" && tipoProcesso === "Administrativo") return STATUS_OPTIONS_ISSQN;
   if (tipoProcesso === "Administrativo") return STATUS_OPTIONS_ADMINISTRATIVO;
   if (tipoAcao === "Ação Ordinária" || tipoAcao === "Mandado de Segurança") return STATUS_OPTIONS_ACAO_ORDINARIA_MS;
   if (tipoAcao === "Cumprimento de Sentença" || tipoAcao === "Liquidação de Sentença") return STATUS_OPTIONS_CUMPRIMENTO_SENTENCA;
@@ -239,6 +261,18 @@ const STATUS_COLOR = {
   "Recebido": { bg: "#EAF6EE", text: "#1E6B3D" },
   "Pendente honorários": { bg: "#FEF3E2", text: "#93450A" },
   "Encerrado": { bg: "#EEF0F4", text: "#475569" },
+  "Não iniciado": { bg: "#EEF0F4", text: "#475569" },
+  "Não Iniciado": { bg: "#EEF0F4", text: "#475569" },
+  "Iniciado": { bg: "#E6F1FB", text: "#0C447C" },
+  "Reunião agendada": { bg: "#E6F1FB", text: "#0C447C" },
+  "Pendente de retorno": { bg: "#FEF3E2", text: "#93450A" },
+  "Aguardando envio de informações": { bg: "#FEF3E2", text: "#93450A" },
+  "Base parcial recebida": { bg: "#FDECEC", text: "#A85A52" },
+  "Recebimento parcial": { bg: "#FDECEC", text: "#A85A52" },
+  "Base de dados recebida": { bg: "#E6F1FB", text: "#0C447C" },
+  "Em análise técnica": { bg: "#E6F1FB", text: "#0C447C" },
+  "Ponto de atenção técnico": { bg: "#FDECEC", text: "#A85A52" },
+  "Pendência financeira": { bg: "#FDECEC", text: "#A85A52" },
   "Aguardando o Município": { bg: "#FEF3E2", text: "#93450A" },
   "Aguardando o Resp. Comercial": { bg: "#FEF3E2", text: "#93450A" },
   "Aguardando o Parceiro": { bg: "#FEF3E2", text: "#93450A" },
@@ -687,6 +721,18 @@ const CLIENTS = [
         origem: "Secretaria de Saúde do Município",
         localizacaoAtual: "Secretaria de Saúde do Município",
         objeto: "Ressarcimento dos valores gastos pelo Município com medicamentos judicializados, mediante cadastro e requerimento junto ao InvestSUS.",
+      },
+      {
+        numero: "",
+        materia: "ISSQN",
+        status: "Em análise técnica",
+        tipo: "Administrativo",
+        tipoAcao: "",
+        patrono: "Monteiro e Monteiro Advogados",
+        parceiroExecutor: "CGD Analytics",
+        situacaoAtual: "Em análise técnica",
+        proximaAcao: "Acompanhar a conclusão da análise técnica e monitorar eventuais pendências identificadas pela equipe do parceiro.",
+        objeto: "Auditoria e fiscalização de ISSQN dos contribuintes do Município, com indicação de indícios, apuração de créditos tributários e arrecadação via split payment, executada em parceria com a CGD Analytics.",
       },
       {
         numero: "1052454-17.2024.4.01.3400",
@@ -2113,6 +2159,10 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
   const [editandoDeferimentoKey, setEditandoDeferimentoKey] = useState(null);
   const [rascunhoDeferimento, setRascunhoDeferimento] = useState({ mes: "", valor: "", quantidadePastas: "", statusValor: "Aguardando entrada do valor", dataRecebimento: "", notaEmitida: false, honorariosPagos: false, honorariosMonteiro: "" });
   const [deferimentoAberto, setDeferimentoAberto] = useState(null);
+  const [novoArrecadacaoIssqn, setNovoArrecadacaoIssqn] = useState({ mes: "", valor: "", notaFiscalEmitida: false, pendenciaFinanceira: false });
+  const [editandoArrecadacaoIssqnKey, setEditandoArrecadacaoIssqnKey] = useState(null);
+  const [rascunhoArrecadacaoIssqn, setRascunhoArrecadacaoIssqn] = useState({ mes: "", valor: "", notaFiscalEmitida: false, pendenciaFinanceira: false });
+  const [arrecadacaoIssqnAberto, setArrecadacaoIssqnAberto] = useState(null);
   const [novoContatoComprev, setNovoContatoComprev] = useState({ nome: "", email: "", telefone: "" });
   const [editandoContatoComprevKey, setEditandoContatoComprevKey] = useState(null);
   const [rascunhoContatoComprev, setRascunhoContatoComprev] = useState({ nome: "", email: "", telefone: "" });
@@ -2203,6 +2253,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
     if (campo === "andamentoTexto") return (p.andamento || []).map((h) => `${h.data ? h.data + " — " : ""}${h.texto}`).join("\n");
     if (campo === "precatorios") return p.precatorios || (p.precatorio && p.precatorio.expedido ? [p.precatorio] : []);
     if (campo === "deferimentos") return p.deferimentos || [];
+    if (campo === "arrecadacoesIssqn") return p.arrecadacoesIssqn || [];
     if (campo === "processosCedidos") return p.processosCedidos || [];
     if (campo === "andamentoFases") return p.andamentoFases || [];
     if (campo === "contatosAdicionais") return p.contatosAdicionais || [];
@@ -3505,7 +3556,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
 
                 {aberto && (
                   <div className="px-4 pb-3 pt-3 text-xs space-y-2 border-t" style={{ color: "#374151", borderColor: "#DCE3E0" }}>
-                    {p.materia !== "COMPREV" && (
+                    {p.materia !== "COMPREV" && p.materia !== "ISSQN" && (
                     <>
                     <p><span style={{ color: "#6B7280" }}>Período:</span> {campoProcesso(p, "periodo", i) || "não informado"}</p>
                     <p><span style={{ color: "#6B7280" }}>Localização atual:</span> {campoProcesso(p, "localizacaoAtual", i) || "não informada"}</p>
@@ -3554,6 +3605,180 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                           <div className="flex items-center gap-1.5 rounded px-2 py-1.5" style={{ background: "#FEF3E2", color: "#93450A" }}>
                             <AlertTriangle size={14} /> Pendência de documentação para apuração do crédito
                             {campoProcesso(p, "statusDocumentacaoSat", i) && ` — ${campoProcesso(p, "statusDocumentacaoSat", i)}`}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {p.materia === "ISSQN" && (
+                      <div className="space-y-1.5">
+                        <p><span style={{ color: "#6B7280" }}>Parceiro executor:</span> CGD Analytics</p>
+                        <div>
+                          <span style={{ color: "#6B7280" }}>Situação atual: </span>
+                          {editandoProcesso[i] ? (
+                            <select
+                              value={campoProcesso(p, "situacaoAtual", i)}
+                              onChange={(e) => atualizarCampoProcesso(i, "situacaoAtual", e.target.value)}
+                              className="text-xs border rounded px-2 py-1 mt-1 w-full"
+                              style={{ borderColor: "#DCE3E0" }}
+                            >
+                              <option value="">Selecione...</option>
+                              {SITUACAO_ATUAL_OPTIONS_ISSQN.map((s) => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          ) : (
+                            <span style={{ color: INK }}>{campoProcesso(p, "situacaoAtual", i) || "não informada"}</span>
+                          )}
+                        </div>
+                        <div>
+                          <span style={{ color: "#6B7280" }}>Próxima ação: </span>
+                          {editandoProcesso[i] ? (
+                            <input
+                              value={campoProcesso(p, "proximaAcao", i)}
+                              onChange={(e) => atualizarCampoProcesso(i, "proximaAcao", e.target.value)}
+                              placeholder="Ex.: Acompanhar retorno da análise técnica prevista para 24/08."
+                              className="text-xs border rounded px-2 py-1 mt-1 w-full"
+                              style={{ borderColor: "#DCE3E0" }}
+                            />
+                          ) : (
+                            <span style={{ color: INK }}>{campoProcesso(p, "proximaAcao", i) || "não informada"}</span>
+                          )}
+                        </div>
+
+                        {editandoProcesso[i] && (
+                          <label className="flex items-center gap-2 pt-1" style={{ color: "#374151" }}>
+                            <input
+                              type="checkbox"
+                              checked={!!campoProcesso(p, "pendenciaComercialIssqn", i)}
+                              onChange={(e) => atualizarCampoProcesso(i, "pendenciaComercialIssqn", e.target.checked)}
+                            />
+                            Sinalizar pendência que necessita intervenção comercial
+                          </label>
+                        )}
+                        {campoProcesso(p, "pendenciaComercialIssqn", i) && (
+                          <div className="flex items-center gap-1.5 rounded px-2 py-1.5" style={{ background: "#FEF3E2", color: "#93450A" }}>
+                            <AlertTriangle size={14} /> Pendência que necessita intervenção comercial junto ao Município.
+                          </div>
+                        )}
+
+                        {campoProcesso(p, "arrecadacoesIssqn", i).some((a) => a.pendenciaFinanceira) && (
+                          <div className="flex items-center gap-1.5 rounded px-2 py-1.5" style={{ background: "#FDECEC", color: "#A85A52" }}>
+                            <AlertTriangle size={14} /> Pendência financeira identificada nas notas fiscais/arrecadação do ISSQN.
+                          </div>
+                        )}
+
+                        <button onClick={() => setArrecadacaoIssqnAberto(arrecadacaoIssqnAberto === i ? null : i)} className="flex items-center gap-1.5" style={{ color: "#374151" }}>
+                          <span style={{ color: "#6B7280" }}>Notas fiscais/Arrecadação:</span> {campoProcesso(p, "arrecadacoesIssqn", i).length} lançamento{campoProcesso(p, "arrecadacoesIssqn", i).length !== 1 ? "s" : ""}
+                          <ChevronDown size={13} style={{ color: "#9CA3AF", transform: arrecadacaoIssqnAberto === i ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
+                        </button>
+
+                        {arrecadacaoIssqnAberto === i && (
+                          <div className="space-y-2">
+                            {campoProcesso(p, "arrecadacoesIssqn", i).length === 0 && (
+                              <p style={{ color: "#6B7280" }}>Nenhum lançamento cadastrado ainda.</p>
+                            )}
+                            {campoProcesso(p, "arrecadacoesIssqn", i).map((a, j) => {
+                              const chave = `${i}-${j}`;
+                              const editando = editandoArrecadacaoIssqnKey === chave;
+                              const lista = campoProcesso(p, "arrecadacoesIssqn", i);
+                              return editando ? (
+                                <div key={j} className="border rounded px-2 py-1.5 space-y-1" style={{ borderColor: "#DCE3E0" }}>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <input placeholder="Mês (MM/AAAA)" value={rascunhoArrecadacaoIssqn.mes} onChange={(e) => setRascunhoArrecadacaoIssqn({ ...rascunhoArrecadacaoIssqn, mes: e.target.value })} className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
+                                    <input placeholder="Valor arrecadado" value={rascunhoArrecadacaoIssqn.valor} onChange={(e) => setRascunhoArrecadacaoIssqn({ ...rascunhoArrecadacaoIssqn, valor: e.target.value })} className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
+                                  </div>
+                                  <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                                    <input type="checkbox" checked={!!rascunhoArrecadacaoIssqn.notaFiscalEmitida} onChange={(e) => setRascunhoArrecadacaoIssqn({ ...rascunhoArrecadacaoIssqn, notaFiscalEmitida: e.target.checked })} />
+                                    Nota fiscal emitida para o Município
+                                  </label>
+                                  <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                                    <input type="checkbox" checked={!!rascunhoArrecadacaoIssqn.pendenciaFinanceira} onChange={(e) => setRascunhoArrecadacaoIssqn({ ...rascunhoArrecadacaoIssqn, pendenciaFinanceira: e.target.checked })} />
+                                    Há pendência financeira
+                                  </label>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        salvarCampoAutomatico(i, "arrecadacoesIssqn", lista.map((it, k) => (k === j ? rascunhoArrecadacaoIssqn : it)));
+                                        setEditandoArrecadacaoIssqnKey(null);
+                                      }}
+                                      className="text-xs px-2 py-0.5 rounded text-white"
+                                      style={{ background: INK }}
+                                    >
+                                      Salvar
+                                    </button>
+                                    <button onClick={() => setEditandoArrecadacaoIssqnKey(null)} className="text-xs px-2 py-0.5 rounded border" style={{ borderColor: "#DCE3E0" }}>
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div key={j} className="flex items-center justify-between border rounded px-2 py-1.5" style={{ borderColor: "#DCE3E0" }}>
+                                  <div>
+                                    <p style={{ color: INK }}>{a.mes}{a.valor && ` — ${currency(parseValorBR(a.valor))}`}</p>
+                                    <p style={{ color: "#6B7280" }}>
+                                      Nota fiscal: {a.notaFiscalEmitida ? "emitida" : "não emitida"}
+                                      {" · "}
+                                      <span style={{ color: a.pendenciaFinanceira ? "#A85A52" : "#1E6B3D" }}>
+                                        {a.pendenciaFinanceira ? "Pendência financeira" : "Sem pendência financeira"}
+                                      </span>
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      onClick={() => { setEditandoArrecadacaoIssqnKey(chave); setRascunhoArrecadacaoIssqn({ ...a }); }}
+                                      className="text-xs px-2 py-0.5 rounded border"
+                                      style={{ borderColor: "#DCE3E0", color: INK }}
+                                    >
+                                      Editar
+                                    </button>
+                                    <button
+                                      onClick={() => salvarCampoAutomatico(i, "arrecadacoesIssqn", lista.filter((_, k) => k !== j))}
+                                      className="text-xs px-2 py-0.5 rounded border"
+                                      style={{ borderColor: "#F09595", color: "#A85A52" }}
+                                    >
+                                      Remover
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            <div className="border rounded px-2 py-2 space-y-2" style={{ borderColor: "#DCE3E0" }}>
+                              <div className="grid grid-cols-2 gap-2">
+                                <input placeholder="Mês (MM/AAAA)" value={novoArrecadacaoIssqn.mes} onChange={(e) => setNovoArrecadacaoIssqn({ ...novoArrecadacaoIssqn, mes: e.target.value })} className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
+                                <input placeholder="Valor arrecadado" value={novoArrecadacaoIssqn.valor} onChange={(e) => setNovoArrecadacaoIssqn({ ...novoArrecadacaoIssqn, valor: e.target.value })} className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
+                              </div>
+                              <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                                <input type="checkbox" checked={!!novoArrecadacaoIssqn.notaFiscalEmitida} onChange={(e) => setNovoArrecadacaoIssqn({ ...novoArrecadacaoIssqn, notaFiscalEmitida: e.target.checked })} />
+                                Nota fiscal emitida para o Município
+                              </label>
+                              <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                                <input type="checkbox" checked={!!novoArrecadacaoIssqn.pendenciaFinanceira} onChange={(e) => setNovoArrecadacaoIssqn({ ...novoArrecadacaoIssqn, pendenciaFinanceira: e.target.checked })} />
+                                Há pendência financeira
+                              </label>
+                              <button
+                                onClick={() => {
+                                  if (!novoArrecadacaoIssqn.mes) return;
+                                  salvarCampoAutomatico(i, "arrecadacoesIssqn", [...campoProcesso(p, "arrecadacoesIssqn", i), novoArrecadacaoIssqn]);
+                                  setNovoArrecadacaoIssqn({ mes: "", valor: "", notaFiscalEmitida: false, pendenciaFinanceira: false });
+                                }}
+                                className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded text-white"
+                                style={{ background: "#1E6B3D" }}
+                              >
+                                <Plus size={13} /> Adicionar lançamento
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {podeEditarProcessos && (
+                          <div className="flex items-center justify-end">
+                            <button
+                              onClick={() => (editandoProcesso[i] ? setEditandoProcesso((prev) => ({ ...prev, [i]: false })) : iniciarEdicaoProcesso(p, i))}
+                              className="text-xs px-2 py-1 rounded border"
+                              style={{ borderColor: "#DCE3E0", color: INK }}
+                            >
+                              {editandoProcesso[i] ? "Concluir edição" : "Editar"}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -4151,7 +4376,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                     {p.materia !== "INSS – Verbas Indenizatórias" && p.materia !== "SAT" && client.tipo !== "publico" && TIPOS_ACAO_COM_LAUDO.includes(campoProcesso(p, "tipoAcao", i)) && campoProcesso(p, "responsavelLaudo", i) && (
                       <p><span style={{ color: "#6B7280" }}>Responsável pelo laudo:</span> {campoProcesso(p, "responsavelLaudo", i)}</p>
                     )}
-                    {p.materia !== "Securitização" && p.materia !== "COMPREV" && p.materia !== "Medicamentos" && (
+                    {p.materia !== "Securitização" && p.materia !== "COMPREV" && p.materia !== "Medicamentos" && p.materia !== "ISSQN" && (
                     <>
                     <div className="flex items-center justify-between pt-1">
                       <p style={{ color: "#6B7280" }}>Andamento processual</p>
@@ -4752,7 +4977,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                       </div>
                     )}
 
-                    {p.materia !== "COMPREV" && (
+                    {p.materia !== "COMPREV" && p.materia !== "ISSQN" && (
                     <div className="pt-2 border-t" style={{ borderColor: "#DCE3E0" }}>
                       <button onClick={() => setVinculadosAberto(vinculadosAberto === i ? null : i)} className="flex items-center gap-1.5" style={{ color: "#374151" }}>
                         <span style={{ color: "#6B7280" }}>Processos judiciais vinculados:</span> {(p.processosVinculados || []).length}
@@ -6229,14 +6454,37 @@ export default function PainelCliente() {
   }, []);
 
   // Carrega, uma única vez, qualquer edição salva anteriormente (ex.: link do
-  // Drive, estratégico, DCOMP, situações adicionais etc.), sobrepondo os
-  // dados de exemplo padrão (CLIENTS) caso já exista algo salvo.
+  // Drive, estratégico, DCOMP, situações adicionais etc.), MESCLANDO com os
+  // dados de exemplo padrão (CLIENTS) — em vez de simplesmente substituir.
+  // Isso é importante porque, sem a mesclagem, processos/clientes NOVOS que
+  // adicionamos depois (ex.: um novo processo de ISSQN) ficariam invisíveis
+  // para quem já tinha dados salvos no navegador de uma versão anterior.
   useEffect(() => {
     (async () => {
       try {
         const res = await window.storage.get(CHAVE_CLIENTS_DATA, false);
         if (res && res.value) {
-          setClients(JSON.parse(res.value));
+          const salvos = JSON.parse(res.value);
+          const porId = new Map(salvos.map((c) => [c.id, c]));
+          const mesclado = CLIENTS.map((clienteDefault) => {
+            const salvo = porId.get(clienteDefault.id);
+            if (!salvo) return clienteDefault; // cliente novo, ainda sem nada salvo
+            // Processos: mantém os salvos (com as edições já feitas) e
+            // acrescenta processos novos do código que ainda não existiam
+            // no que foi salvo (comparando pela matéria).
+            const materiasSalvas = new Set((salvo.processos || []).map((p) => p.materia));
+            const processosNovos = (clienteDefault.processos || []).filter((p) => !materiasSalvas.has(p.materia));
+            // Contratos: mesma lógica, comparando pelo número do contrato.
+            const numerosContratosSalvos = new Set((salvo.contratos || []).map((c) => c.numero));
+            const contratosNovos = (clienteDefault.contratos || []).filter((c) => !numerosContratosSalvos.has(c.numero));
+            return {
+              ...clienteDefault,
+              ...salvo,
+              processos: [...(salvo.processos || []), ...processosNovos],
+              contratos: [...(salvo.contratos || []), ...contratosNovos],
+            };
+          });
+          setClients(mesclado);
         }
       } catch (e) {
         // Nenhum dado salvo ainda — mantém os dados de exemplo padrão.
