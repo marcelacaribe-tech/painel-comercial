@@ -1140,7 +1140,7 @@ function pendenciasComerciaisDinamicas(client) {
     }
   });
   const contratosComPendenciaDocumental = (client.contratos || []).filter((ctr) =>
-    client.tipo === "publico" ? ctr.kitPrefeito === "PENDENTE" : client.tipo === "privado" ? ctr.documentosFiscais === "PENDENTE" : false
+    client.tipo === "publico" ? ctr.kitPrefeito === "PENDENTE" : (client.tipo === "privado" || client.tipo === "entidade") ? ctr.documentosFiscais === "PENDENTE" : false
   );
   contratosComPendenciaDocumental.forEach((ctr) => {
     const referencia = ctr.numero ? `contrato nº ${ctr.numero}` : "contrato sem número cadastrado";
@@ -2067,7 +2067,7 @@ function ClientList({ tipo, setTipo, onSelect }) {
   );
 }
 
-function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, onEditContact, onDeleteContact, onSetStatus, onSetTipoProcesso, onSetNumero, onSetAgravoPendente, onSetSaldoDcompUtilizado, onSetDataUltimaDcompTransmitida, onSetStatusAdicionais, onUpdatePrecatorio, onUpdateAdesoes, onUpdateProcessosVinculados, onUpdateContrato, onAddContrato, onSetEstrategico, onSetResponsavel, onSetPastaDriveUrl, onSetAgendorUrl, onSetCnpj, onSetAdvogadoInterno }) {
+function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, onEditContact, onDeleteContact, onSetStatus, onSetTipoProcesso, onSetNumero, onSetAgravoPendente, onSetSaldoDcompUtilizado, onSetDataUltimaDcompTransmitida, onSetStatusAdicionais, onUpdatePrecatorio, onUpdateAdesoes, onUpdateProcessosVinculados, onUpdateContrato, onAddContrato, onSetEstrategico, onSetResponsavel, onSetPastaDriveUrl, onSetAgendorUrl, onSetCnpj, onSetAdvogadoInterno, onSetAbrangencia, onSetMunicipiosAbrangencia, onSetCategoria, onSetParceiro }) {
   const podeEditarContratos = papel === "controladoria" || papel === "socios";
   const podeEditarContatos = papel === "controladoria" || papel === "socios";
   const podeEditarProcessos = papel === "advogado" || papel === "socios";
@@ -2075,6 +2075,17 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
   const [openInformacoes, setOpenInformacoes] = useState(false);
   const [rascunhoCnpj, setRascunhoCnpj] = useState(client.cnpj || "");
   const [rascunhoAdvogadoInterno, setRascunhoAdvogadoInterno] = useState(client.advogadoInterno || "");
+  const [rascunhoAbrangencia, setRascunhoAbrangencia] = useState(client.abrangencia || "");
+  const [rascunhoMunicipiosAbrangencia, setRascunhoMunicipiosAbrangencia] = useState(client.municipiosAbrangencia || "");
+  const [rascunhoCategoria, setRascunhoCategoria] = useState(client.categoria || "");
+  const [mostrarFormParceiro, setMostrarFormParceiro] = useState(false);
+  const [rascunhoParceiro, setRascunhoParceiro] = useState({
+    atual: client.parceiro?.atual || "",
+    situacao: client.parceiro?.situacao || "ativa",
+    dataSolicitacao: client.parceiro?.dataSolicitacao || "",
+    duracaoDias: client.parceiro?.duracaoDias || "",
+    responsavelInterno: client.parceiro?.responsavelInterno || "",
+  });
   const [buscandoCnpj, setBuscandoCnpj] = useState(false);
   const [statusBuscaCnpj, setStatusBuscaCnpj] = useState("");
   const [razaoSocialCnpj, setRazaoSocialCnpj] = useState("");
@@ -2091,9 +2102,9 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
   const [processoAberto, setProcessoAberto] = useState(null);
   const [precatorioAberto, setPrecatorioAberto] = useState(null);
   const [adesaoAberto, setAdesaoAberto] = useState(null);
-  const [novaAdesao, setNovaAdesao] = useState({ nome: "", valor: "", honorarios: "", meioRecebimento: "", data: "" });
+  const [novaAdesao, setNovaAdesao] = useState({ nome: "", valor: "", honorarios: "", meioRecebimento: "", data: "", periodo: "", temAcaoIndividual: false, numeroAcaoIndividual: "", periodoAcaoIndividual: "" });
   const [editandoAdesaoKey, setEditandoAdesaoKey] = useState(null);
-  const [rascunhoAdesao, setRascunhoAdesao] = useState({ nome: "", valor: "", honorarios: "", meioRecebimento: "", data: "" });
+  const [rascunhoAdesao, setRascunhoAdesao] = useState({ nome: "", valor: "", honorarios: "", meioRecebimento: "", data: "", periodo: "", temAcaoIndividual: false, numeroAcaoIndividual: "", periodoAcaoIndividual: "" });
   const [vinculadosAberto, setVinculadosAberto] = useState(null);
   const [novoVinculadoSelecionado, setNovoVinculadoSelecionado] = useState("");
   const [novoVinculadoManual, setNovoVinculadoManual] = useState("");
@@ -2238,12 +2249,13 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
   );
 
   const processosComIndice = client.processos.map((p, i) => ({ p, i }));
+  const somaAdesoes = (p) => (p.adesoes || []).reduce((soma, a) => soma + parseValorBR(a.valor), 0);
   const valorTotalJudiciais = client.processos.reduce(
-    (soma, p, i) => soma + ((p.tipo || "Judicial") !== "Administrativo" ? parseValorBR(campoProcesso(p, "valorCausaTexto", i)) : 0),
+    (soma, p, i) => soma + ((p.tipo || "Judicial") !== "Administrativo" ? parseValorBR(campoProcesso(p, "valorCausaTexto", i)) + somaAdesoes(p) : 0),
     0
   );
   const valorTotalAdministrativos = client.processos.reduce(
-    (soma, p, i) => soma + (p.tipo === "Administrativo" ? parseValorBR(campoProcesso(p, "valorCausaTexto", i)) : 0),
+    (soma, p, i) => soma + (p.tipo === "Administrativo" ? parseValorBR(campoProcesso(p, "valorCausaTexto", i)) + somaAdesoes(p) : 0),
     0
   );
   const precatoriosExpedidosCount = client.processos.reduce(
@@ -2291,6 +2303,9 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
   const salvarInformacoes = () => {
     onSetCnpj(client.id, rascunhoCnpj.trim());
     onSetAdvogadoInterno(client.id, rascunhoAdvogadoInterno.trim());
+    onSetAbrangencia(client.id, rascunhoAbrangencia.trim());
+    onSetMunicipiosAbrangencia(client.id, rascunhoAbrangencia.trim() === "Municipal" ? rascunhoMunicipiosAbrangencia.trim() : "");
+    onSetCategoria(client.id, rascunhoCategoria.trim());
     setStatusSalvoInformacoes("Informações salvas.");
     setTimeout(() => setStatusSalvoInformacoes(""), 2500);
   };
@@ -2567,6 +2582,59 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                 </div>
               </div>
 
+              {client.tipo === "entidade" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs mb-1" style={{ color: "#6B7280" }}>Abrangência</p>
+                    {podeEditarContratos ? (
+                      <select
+                        value={rascunhoAbrangencia}
+                        onChange={(e) => setRascunhoAbrangencia(e.target.value)}
+                        className="w-full text-sm border rounded px-2 py-1"
+                        style={{ borderColor: "#DCE3E0" }}
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="Municipal">Municipal</option>
+                        <option value="Estadual">Estadual</option>
+                        <option value="Nacional">Nacional</option>
+                      </select>
+                    ) : (
+                      <p className="text-sm" style={{ color: INK }}>{client.abrangencia || "Não informada"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs mb-1" style={{ color: "#6B7280" }}>Categoria</p>
+                    {podeEditarContratos ? (
+                      <input
+                        value={rascunhoCategoria}
+                        onChange={(e) => setRascunhoCategoria(e.target.value)}
+                        placeholder="Ex.: Comércio varejista e lojista"
+                        className="w-full text-sm border rounded px-2 py-1"
+                        style={{ borderColor: "#DCE3E0" }}
+                      />
+                    ) : (
+                      <p className="text-sm" style={{ color: INK }}>{client.categoria || "Não informada"}</p>
+                    )}
+                  </div>
+                  {(podeEditarContratos ? rascunhoAbrangencia : client.abrangencia) === "Municipal" && (
+                    <div className="col-span-2">
+                      <p className="text-xs mb-1" style={{ color: "#6B7280" }}>Município(s)</p>
+                      {podeEditarContratos ? (
+                        <input
+                          value={rascunhoMunicipiosAbrangencia}
+                          onChange={(e) => setRascunhoMunicipiosAbrangencia(e.target.value)}
+                          placeholder="Ex.: Fortaleza, Caucaia, Maracanaú"
+                          className="w-full text-sm border rounded px-2 py-1"
+                          style={{ borderColor: "#DCE3E0" }}
+                        />
+                      ) : (
+                        <p className="text-sm" style={{ color: INK }}>{client.municipiosAbrangencia || "Não informado"}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {podeEditarContratos && (
                 <div className="flex items-center gap-2">
                   <button
@@ -2607,26 +2675,135 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <p className="text-xs" style={{ color: "#6B7280" }}>Parceiro atual</p>
-                  <Badge bg={SITUACAO_RESERVA[client.parceiro.situacao].bg} color={SITUACAO_RESERVA[client.parceiro.situacao].text}>
-                    {SITUACAO_RESERVA[client.parceiro.situacao].label}
-                  </Badge>
-                </div>
-                <p className="text-sm" style={{ color: INK }}>{client.parceiro.atual || "Nenhum parceiro atual"}</p>
-                <p className="text-xs mt-1" style={{ color: "#6B7280" }}>
-                  Solicitado em {client.parceiro.dataSolicitacao || "não informado"} · vigência {client.parceiro.duracaoDias} dias · {client.parceiro.diasInfo}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
-                  Responsável pela solicitação: {client.parceiro.responsavelInterno || "não informado"}
-                </p>
-                <div className="mt-3 pt-2 border-t" style={{ borderColor: "#DCE3E0" }}>
-                  <p className="text-xs mb-1.5" style={{ color: "#6B7280" }}>Parceiros anteriores</p>
-                  {(client.parceiro.passados || []).length === 0 && <p className="text-sm" style={{ color: "#6B7280" }}>Sem registros.</p>}
-                  {(client.parceiro.passados || []).map((h, i) => (
-                    <p key={i} className="text-sm" style={{ color: INK }}>{h.data} — {h.nome}</p>
-                  ))}
-                </div>
+                {client.tipo === "publico" ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-xs" style={{ color: "#6B7280" }}>Parceiro atual</p>
+                      <Badge bg={SITUACAO_RESERVA[client.parceiro.situacao].bg} color={SITUACAO_RESERVA[client.parceiro.situacao].text}>
+                        {SITUACAO_RESERVA[client.parceiro.situacao].label}
+                      </Badge>
+                    </div>
+                    <p className="text-sm" style={{ color: INK }}>{client.parceiro.atual || "Nenhum parceiro atual"}</p>
+                    <p className="text-xs mt-1" style={{ color: "#6B7280" }}>
+                      Solicitado em {client.parceiro.dataSolicitacao || "não informado"} · vigência {client.parceiro.duracaoDias} dias · {client.parceiro.diasInfo}
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
+                      Responsável pela solicitação: {client.parceiro.responsavelInterno || "não informado"}
+                    </p>
+                    <div className="mt-3 pt-2 border-t" style={{ borderColor: "#DCE3E0" }}>
+                      <p className="text-xs mb-1.5" style={{ color: "#6B7280" }}>Parceiros anteriores</p>
+                      {(client.parceiro.passados || []).length === 0 && <p className="text-sm" style={{ color: "#6B7280" }}>Sem registros.</p>}
+                      {(client.parceiro.passados || []).map((h, i) => (
+                        <p key={i} className="text-sm" style={{ color: INK }}>{h.data} — {h.nome}</p>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {!mostrarFormParceiro && (
+                      <>
+                        {client.parceiro?.atual ? (
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="text-xs" style={{ color: "#6B7280" }}>Parceiro atual</p>
+                                <Badge bg={SITUACAO_RESERVA[client.parceiro.situacao].bg} color={SITUACAO_RESERVA[client.parceiro.situacao].text}>
+                                  {SITUACAO_RESERVA[client.parceiro.situacao].label}
+                                </Badge>
+                              </div>
+                              <p className="text-sm" style={{ color: INK }}>{client.parceiro.atual}</p>
+                              <p className="text-xs mt-1" style={{ color: "#6B7280" }}>
+                                Solicitado em {client.parceiro.dataSolicitacao || "não informado"} · vigência {client.parceiro.duracaoDias || "?"} dias
+                              </p>
+                              <p className="text-xs mt-0.5" style={{ color: "#6B7280" }}>
+                                Responsável pela solicitação: {client.parceiro.responsavelInterno || "não informado"}
+                              </p>
+                            </div>
+                            {podeEditarContratos && (
+                              <button
+                                onClick={() => { setRascunhoParceiro({ atual: client.parceiro.atual || "", situacao: client.parceiro.situacao || "ativa", dataSolicitacao: client.parceiro.dataSolicitacao || "", duracaoDias: client.parceiro.duracaoDias || "", responsavelInterno: client.parceiro.responsavelInterno || "" }); setMostrarFormParceiro(true); }}
+                                className="text-xs px-2 py-1 rounded border"
+                                style={{ borderColor: "#DCE3E0", color: INK }}
+                              >
+                                Editar
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          podeEditarContratos && (
+                            <button
+                              onClick={() => { setRascunhoParceiro({ atual: "", situacao: "ativa", dataSolicitacao: "", duracaoDias: "", responsavelInterno: "" }); setMostrarFormParceiro(true); }}
+                              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded border"
+                              style={{ borderColor: "#DCE3E0", color: INK }}
+                            >
+                              <Plus size={13} /> Adicionar parceiro
+                            </button>
+                          )
+                        )}
+                      </>
+                    )}
+                    {mostrarFormParceiro && (
+                      <div className="border rounded p-2 space-y-2" style={{ borderColor: "#DCE3E0" }}>
+                        <p className="text-xs" style={{ color: "#6B7280" }}>Parceiro</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            placeholder="Nome do parceiro"
+                            value={rascunhoParceiro.atual}
+                            onChange={(e) => setRascunhoParceiro({ ...rascunhoParceiro, atual: e.target.value })}
+                            className="text-xs border rounded px-2 py-1"
+                            style={{ borderColor: "#DCE3E0" }}
+                          />
+                          <select
+                            value={rascunhoParceiro.situacao}
+                            onChange={(e) => setRascunhoParceiro({ ...rascunhoParceiro, situacao: e.target.value })}
+                            className="text-xs border rounded px-2 py-1"
+                            style={{ borderColor: "#DCE3E0" }}
+                          >
+                            <option value="ativa">Reserva ativa</option>
+                            <option value="vencida">Reserva vencida</option>
+                            <option value="livre">Livre</option>
+                          </select>
+                          <input
+                            placeholder="Data de solicitação"
+                            value={rascunhoParceiro.dataSolicitacao}
+                            onChange={(e) => setRascunhoParceiro({ ...rascunhoParceiro, dataSolicitacao: e.target.value })}
+                            className="text-xs border rounded px-2 py-1"
+                            style={{ borderColor: "#DCE3E0" }}
+                          />
+                          <input
+                            placeholder="Vigência (dias)"
+                            value={rascunhoParceiro.duracaoDias}
+                            onChange={(e) => setRascunhoParceiro({ ...rascunhoParceiro, duracaoDias: e.target.value })}
+                            className="text-xs border rounded px-2 py-1"
+                            style={{ borderColor: "#DCE3E0" }}
+                          />
+                          <input
+                            placeholder="Responsável pela solicitação"
+                            value={rascunhoParceiro.responsavelInterno}
+                            onChange={(e) => setRascunhoParceiro({ ...rascunhoParceiro, responsavelInterno: e.target.value })}
+                            className="col-span-2 text-xs border rounded px-2 py-1"
+                            style={{ borderColor: "#DCE3E0" }}
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              onSetParceiro(client.id, rascunhoParceiro);
+                              setMostrarFormParceiro(false);
+                            }}
+                            className="text-xs px-2.5 py-1 rounded text-white"
+                            style={{ background: INK }}
+                          >
+                            Salvar
+                          </button>
+                          <button onClick={() => setMostrarFormParceiro(false)} className="text-xs px-2.5 py-1 rounded border" style={{ borderColor: "#DCE3E0" }}>
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -3097,8 +3274,35 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                                       <option value="">Meio de recebimento...</option>
                                       {MEIO_RECEBIMENTO_OPTIONS.map((op) => <option key={op} value={op}>{op}</option>)}
                                     </select>
-                                    <input value={rascunhoAdesao.data} onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, data: e.target.value })} className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
+                                    <input value={rascunhoAdesao.data} onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, data: e.target.value })} placeholder="Data da adesão" className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
+                                    <input value={rascunhoAdesao.periodo} onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, periodo: e.target.value })} placeholder="Período (ex.: 2019 a 2024)" className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
                                   </div>
+                                  <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={!!rascunhoAdesao.temAcaoIndividual}
+                                      onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, temAcaoIndividual: e.target.checked })}
+                                    />
+                                    Possui ação individual
+                                  </label>
+                                  {rascunhoAdesao.temAcaoIndividual && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <input
+                                        placeholder="Nº da ação individual"
+                                        value={rascunhoAdesao.numeroAcaoIndividual}
+                                        onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, numeroAcaoIndividual: e.target.value })}
+                                        className="text-xs border rounded px-2 py-1"
+                                        style={{ borderColor: "#DCE3E0" }}
+                                      />
+                                      <input
+                                        placeholder="Período da individual"
+                                        value={rascunhoAdesao.periodoAcaoIndividual}
+                                        onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, periodoAcaoIndividual: e.target.value })}
+                                        className="text-xs border rounded px-2 py-1"
+                                        style={{ borderColor: "#DCE3E0" }}
+                                      />
+                                    </div>
+                                  )}
                                   <div className="flex gap-2">
                                     <button
                                       onClick={() => {
@@ -3123,11 +3327,18 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                                       Honorários: {a.honorarios || "não informado"}
                                       {a.meioRecebimento && ` · Meio de recebimento: ${a.meioRecebimento}`}
                                       {" "}· adesão em {a.data || dataAdesaoAssociada(a.nome, p.pasta) || "data não informada"}
+                                      {a.periodo && ` · Período: ${a.periodo}`}
                                     </p>
+                                    {a.temAcaoIndividual && (
+                                      <p style={{ color: "#0C447C" }}>
+                                        Ação individual: {a.numeroAcaoIndividual || "nº não informado"}
+                                        {a.periodoAcaoIndividual && ` · Período: ${a.periodoAcaoIndividual}`}
+                                      </p>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <button
-                                      onClick={() => { setEditandoAdesaoKey(chave); setRascunhoAdesao({ ...a }); }}
+                                      onClick={() => { setEditandoAdesaoKey(chave); setRascunhoAdesao({ periodo: "", temAcaoIndividual: false, numeroAcaoIndividual: "", periodoAcaoIndividual: "", ...a }); }}
                                       className="text-xs px-2 py-0.5 rounded border"
                                       style={{ borderColor: "#DCE3E0", color: INK }}
                                     >
@@ -3183,13 +3394,47 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                                 className="text-xs border rounded px-2 py-1"
                                 style={{ borderColor: "#DCE3E0" }}
                               />
+                              <input
+                                type="text"
+                                placeholder="Período (ex.: 2019 a 2024)"
+                                value={novaAdesao.periodo}
+                                onChange={(e) => setNovaAdesao({ ...novaAdesao, periodo: e.target.value })}
+                                className="text-xs border rounded px-2 py-1"
+                                style={{ borderColor: "#DCE3E0" }}
+                              />
                             </div>
+                            <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                              <input
+                                type="checkbox"
+                                checked={!!novaAdesao.temAcaoIndividual}
+                                onChange={(e) => setNovaAdesao({ ...novaAdesao, temAcaoIndividual: e.target.checked })}
+                              />
+                              Possui ação individual
+                            </label>
+                            {novaAdesao.temAcaoIndividual && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  placeholder="Nº da ação individual"
+                                  value={novaAdesao.numeroAcaoIndividual}
+                                  onChange={(e) => setNovaAdesao({ ...novaAdesao, numeroAcaoIndividual: e.target.value })}
+                                  className="text-xs border rounded px-2 py-1"
+                                  style={{ borderColor: "#DCE3E0" }}
+                                />
+                                <input
+                                  placeholder="Período da individual"
+                                  value={novaAdesao.periodoAcaoIndividual}
+                                  onChange={(e) => setNovaAdesao({ ...novaAdesao, periodoAcaoIndividual: e.target.value })}
+                                  className="text-xs border rounded px-2 py-1"
+                                  style={{ borderColor: "#DCE3E0" }}
+                                />
+                              </div>
+                            )}
                             <button
                               onClick={() => {
                                 if (!novaAdesao.nome) return;
                                 const dataFinal = novaAdesao.data || dataAdesaoAssociada(novaAdesao.nome, p.pasta);
                                 onUpdateAdesoes(client.id, i, [...(p.adesoes || []), { ...novaAdesao, data: dataFinal }]);
-                                setNovaAdesao({ nome: "", valor: "", honorarios: "", meioRecebimento: "", data: "" });
+                                setNovaAdesao({ nome: "", valor: "", honorarios: "", meioRecebimento: "", data: "", periodo: "", temAcaoIndividual: false, numeroAcaoIndividual: "", periodoAcaoIndividual: "" });
                               }}
                               className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded text-white"
                               style={{ background: INK }}
@@ -4618,8 +4863,35 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                                       <option value="">Meio de recebimento...</option>
                                       {MEIO_RECEBIMENTO_OPTIONS.map((op) => <option key={op} value={op}>{op}</option>)}
                                     </select>
-                                    <input value={rascunhoAdesao.data} onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, data: e.target.value })} className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
+                                    <input value={rascunhoAdesao.data} onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, data: e.target.value })} placeholder="Data da adesão" className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
+                                    <input value={rascunhoAdesao.periodo} onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, periodo: e.target.value })} placeholder="Período (ex.: 2019 a 2024)" className="text-xs border rounded px-2 py-1" style={{ borderColor: "#DCE3E0" }} />
                                   </div>
+                                  <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={!!rascunhoAdesao.temAcaoIndividual}
+                                      onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, temAcaoIndividual: e.target.checked })}
+                                    />
+                                    Possui ação individual
+                                  </label>
+                                  {rascunhoAdesao.temAcaoIndividual && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <input
+                                        placeholder="Nº da ação individual"
+                                        value={rascunhoAdesao.numeroAcaoIndividual}
+                                        onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, numeroAcaoIndividual: e.target.value })}
+                                        className="text-xs border rounded px-2 py-1"
+                                        style={{ borderColor: "#DCE3E0" }}
+                                      />
+                                      <input
+                                        placeholder="Período da individual"
+                                        value={rascunhoAdesao.periodoAcaoIndividual}
+                                        onChange={(e) => setRascunhoAdesao({ ...rascunhoAdesao, periodoAcaoIndividual: e.target.value })}
+                                        className="text-xs border rounded px-2 py-1"
+                                        style={{ borderColor: "#DCE3E0" }}
+                                      />
+                                    </div>
+                                  )}
                                   <div className="flex gap-2">
                                     <button
                                       onClick={() => {
@@ -4644,11 +4916,18 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                                       Honorários: {a.honorarios || "não informado"}
                                       {a.meioRecebimento && ` · Meio de recebimento: ${a.meioRecebimento}`}
                                       {" "}· adesão em {a.data || dataAdesaoAssociada(a.nome, p.pasta) || "data não informada"}
+                                      {a.periodo && ` · Período: ${a.periodo}`}
                                     </p>
+                                    {a.temAcaoIndividual && (
+                                      <p style={{ color: "#0C447C" }}>
+                                        Ação individual: {a.numeroAcaoIndividual || "nº não informado"}
+                                        {a.periodoAcaoIndividual && ` · Período: ${a.periodoAcaoIndividual}`}
+                                      </p>
+                                    )}
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <button
-                                      onClick={() => { setEditandoAdesaoKey(chave); setRascunhoAdesao({ ...a }); }}
+                                      onClick={() => { setEditandoAdesaoKey(chave); setRascunhoAdesao({ periodo: "", temAcaoIndividual: false, numeroAcaoIndividual: "", periodoAcaoIndividual: "", ...a }); }}
                                       className="text-xs px-2 py-0.5 rounded border"
                                       style={{ borderColor: "#DCE3E0", color: INK }}
                                     >
@@ -4704,13 +4983,47 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                                 className="text-xs border rounded px-2 py-1"
                                 style={{ borderColor: "#DCE3E0" }}
                               />
+                              <input
+                                type="text"
+                                placeholder="Período (ex.: 2019 a 2024)"
+                                value={novaAdesao.periodo}
+                                onChange={(e) => setNovaAdesao({ ...novaAdesao, periodo: e.target.value })}
+                                className="text-xs border rounded px-2 py-1"
+                                style={{ borderColor: "#DCE3E0" }}
+                              />
                             </div>
+                            <label className="flex items-center gap-2" style={{ color: "#374151" }}>
+                              <input
+                                type="checkbox"
+                                checked={!!novaAdesao.temAcaoIndividual}
+                                onChange={(e) => setNovaAdesao({ ...novaAdesao, temAcaoIndividual: e.target.checked })}
+                              />
+                              Possui ação individual
+                            </label>
+                            {novaAdesao.temAcaoIndividual && (
+                              <div className="grid grid-cols-2 gap-2">
+                                <input
+                                  placeholder="Nº da ação individual"
+                                  value={novaAdesao.numeroAcaoIndividual}
+                                  onChange={(e) => setNovaAdesao({ ...novaAdesao, numeroAcaoIndividual: e.target.value })}
+                                  className="text-xs border rounded px-2 py-1"
+                                  style={{ borderColor: "#DCE3E0" }}
+                                />
+                                <input
+                                  placeholder="Período da individual"
+                                  value={novaAdesao.periodoAcaoIndividual}
+                                  onChange={(e) => setNovaAdesao({ ...novaAdesao, periodoAcaoIndividual: e.target.value })}
+                                  className="text-xs border rounded px-2 py-1"
+                                  style={{ borderColor: "#DCE3E0" }}
+                                />
+                              </div>
+                            )}
                             <button
                               onClick={() => {
                                 if (!novaAdesao.nome) return;
                                 const dataFinal = novaAdesao.data || dataAdesaoAssociada(novaAdesao.nome, p.pasta);
                                 onUpdateAdesoes(client.id, i, [...(p.adesoes || []), { ...novaAdesao, data: dataFinal }]);
-                                setNovaAdesao({ nome: "", valor: "", honorarios: "", meioRecebimento: "", data: "" });
+                                setNovaAdesao({ nome: "", valor: "", honorarios: "", meioRecebimento: "", data: "", periodo: "", temAcaoIndividual: false, numeroAcaoIndividual: "", periodoAcaoIndividual: "" });
                               }}
                               className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded text-white"
                               style={{ background: INK }}
@@ -4865,7 +5178,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                     {client.tipo === "publico" && ctr.kitPrefeito === "PENDENTE" && (
                       <Badge bg="#FDECEC" color="#A85A52">Kit Prefeito pendente</Badge>
                     )}
-                    {client.tipo === "privado" && ctr.documentosFiscais === "PENDENTE" && (
+                    {(client.tipo === "privado" || client.tipo === "entidade") && ctr.documentosFiscais === "PENDENTE" && (
                       <Badge bg="#FDECEC" color="#A85A52">Documentos fiscais pendentes</Badge>
                     )}
                     {client.tipo === "publico" && statusRegularizacaoContrato(ctr) && (
@@ -5030,7 +5343,7 @@ function ClientDetail({ client, tipo, papel, allClients, onBack, onAddContact, o
                         )}
                       </div>
                     )}
-                    {client.tipo === "privado" && (
+                    {(client.tipo === "privado" || client.tipo === "entidade") && (
                       <div className="flex items-center gap-2">
                         <span style={{ color: "#6B7280" }}>Documentos fiscais:</span>
                         {editandoContrato[i] ? (
@@ -5172,6 +5485,8 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
   const [responsavelFiltro, setResponsavelFiltro] = useState([]);
   const [tipoAcaoFiltro, setTipoAcaoFiltro] = useState([]);
   const [tipoProcessoFiltro, setTipoProcessoFiltro] = useState([]);
+  const [abrangenciaFiltro, setAbrangenciaFiltro] = useState([]);
+  const [categoriaFiltro, setCategoriaFiltro] = useState([]);
   const [busca, setBusca] = useState("");
   const [status, setStatus] = useState("");
 
@@ -5197,6 +5512,12 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
 
   const estadosDisponiveis = Array.from(new Set(clientsBase.map((c) => c.uf))).filter(Boolean).sort();
   const responsaveisDisponiveis = Array.from(new Set(clientsBase.map((c) => c.responsavel || "Não definido"))).sort();
+  const abrangenciasDisponiveis = Array.from(
+    new Set(clientsBase.filter((c) => c.tipo === "entidade").map((c) => c.abrangencia || "Não informada"))
+  ).sort();
+  const categoriasDisponiveis = Array.from(
+    new Set(clientsBase.filter((c) => c.tipo === "entidade").map((c) => c.categoria || "Não informada"))
+  ).sort();
 
   // Filtra a lista de processos considerando todos os filtros ativos, exceto o indicado em
   // "exceto" — assim, as opções disponíveis de cada filtro já refletem os demais filtros
@@ -5247,6 +5568,14 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipoCliente.join(","), materiaFiltro.join(","), statusFiltro.join(","), tipoAcaoFiltro.join(",")]);
 
+  useEffect(() => {
+    if (!tipoCliente.includes("Entidade de classe")) {
+      setAbrangenciaFiltro([]);
+      setCategoriaFiltro([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipoCliente.join(",")]);
+
   const contratosPendentesRegularizacao = clientsBase
     .filter((c) => c.tipo === "publico")
     .map((c) => ({
@@ -5294,6 +5623,8 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
       if (!(querEstrategico || querNaoEstrategico)) return false;
     }
     if (responsavelFiltro.length && !responsavelFiltro.includes(c.responsavel || "Não definido")) return false;
+    if (abrangenciaFiltro.length && !abrangenciaFiltro.includes(c.abrangencia || "Não informada")) return false;
+    if (categoriaFiltro.length && !categoriaFiltro.includes(c.categoria || "Não informada")) return false;
     if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase())) return false;
     return true;
   });
@@ -5352,18 +5683,97 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
     .slice(0, 10);
 
   const gerarRelatorio = (formato) => {
-    const linhas = clientesFiltrados.map((c) => {
-      const partes = [`${c.nome} (${tipoLabel[c.tipo]} · ${c.uf})`];
-      if (pendenciasComerciaisDinamicas(c).length) partes.push(`  Pendências documentais: ${pendenciasComerciaisDinamicas(c).join("; ")}`);
-      if (c.pendenciaProcessual.length) partes.push(`  Pendências processuais: ${c.pendenciaProcessual.map((p) => `${p.processo} parado há ${p.dias} dias (resp. ${p.responsavel})`).join("; ")}`);
-      if (!pendenciasComerciaisDinamicas(c).length && !c.pendenciaProcessual.length) partes.push("  Nenhuma pendência.");
-      return partes.join("\n");
-    });
-    const resumo = `Processos: ${totalProcessos} · Estados: ${totalEstados} · Valor total da causa: ${currency(valorTotalCausa)} · Precatórios expedidos: ${precatoriosExpedidos} · Contratos: ${totalContratos}`;
-    const texto = `Painel de Acompanhamento — Monteiro e Monteiro\n\n${resumo}\n\n${linhas.join("\n\n")}`;
+    const kpisHtml = `
+      <div class="kpis">
+        <div class="kpi" style="border-left-color:#0C447C"><div class="kpi-label">Processos</div><div class="kpi-value">${totalProcessos}</div></div>
+        <div class="kpi" style="border-left-color:#93450A"><div class="kpi-label">Estados</div><div class="kpi-value">${totalEstados}</div></div>
+        <div class="kpi" style="border-left-color:#534AB7"><div class="kpi-label">Valor total da causa</div><div class="kpi-value">${currency(valorTotalCausa)}</div></div>
+        <div class="kpi" style="border-left-color:#1E6B3D"><div class="kpi-label">Precatórios expedidos</div><div class="kpi-value">${precatoriosExpedidos}</div></div>
+        <div class="kpi" style="border-left-color:#6B7280"><div class="kpi-label">Contratos</div><div class="kpi-value">${totalContratos}</div></div>
+      </div>`;
+
+    const clientesHtml = clientesFiltrados.map((c) => {
+      const pendDoc = pendenciasComerciaisDinamicas(c);
+      const pendProc = c.pendenciaProcessual;
+      let pendenciasHtml = `<div class="pendencia-ok">Nenhuma pendência.</div>`;
+      if (pendDoc.length || pendProc.length) {
+        pendenciasHtml = "";
+        if (pendDoc.length) {
+          pendenciasHtml += `<div class="pendencia pendencia-comercial">Pendências documentais: ${escapeHtml(pendDoc.join("; "))}</div>`;
+        }
+        if (pendProc.length) {
+          const texto = pendProc.map((p) => `${p.processo} parado há ${p.dias} dias (resp. ${p.responsavel})`).join("; ");
+          pendenciasHtml += `<div class="pendencia pendencia-processual">Pendências processuais: ${escapeHtml(texto)}</div>`;
+        }
+      }
+      return `
+        <div class="cliente-card">
+          <div class="cliente-nome">${escapeHtml(c.nome)}</div>
+          <div class="cliente-tipo">${tipoLabel[c.tipo]} · ${c.uf}</div>
+          ${pendenciasHtml}
+        </div>`;
+    }).join("");
+
+    const linhasTabela = processosFiltrados.map((p) => {
+      const cor = STATUS_COLOR[p.status] || { bg: "#EEF0F4", text: "#475569" };
+      return `
+        <tr>
+          <td>${escapeHtml(p.clienteNome)}${p.estrategico ? ' <span class="estrategico">★ Estratégico</span>' : ""}</td>
+          <td>${escapeHtml(p.clienteUf || "")}</td>
+          <td>${escapeHtml(p.numero || "—")}</td>
+          <td>${escapeHtml(p.materia || "")}</td>
+          <td><span class="status-badge" style="background:${cor.bg};color:${cor.text};border-left:3px solid ${cor.text}">${escapeHtml(p.status || "")}</span></td>
+          <td class="valor">${p.valorCausa ? currency(p.valorCausa) : "—"}</td>
+        </tr>`;
+    }).join("");
+
+    const tabelaHtml = `
+      <div class="tabela-titulo">Lista de processos <span class="tabela-contagem">${processosFiltrados.length} processos</span></div>
+      <table>
+        <thead>
+          <tr>
+            <th>Cliente</th><th>UF</th><th>Processo</th><th>Matéria</th><th>Status</th><th style="text-align:right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${linhasTabela || `<tr><td colspan="6" style="text-align:center;color:#6B7280">Nenhum processo encontrado com esses filtros.</td></tr>`}
+        </tbody>
+      </table>`;
+
+    const html = `<html><head><meta charset="utf-8"><title>Painel de Acompanhamento</title>
+      <style>
+        body { font-family: Calibri, Arial, sans-serif; color: #1F2937; margin: 28px; }
+        h1 { color: #002F22; font-size: 20px; margin: 0 0 2px 0; }
+        .subtitulo { color: #6B7280; font-size: 12px; margin-bottom: 18px; }
+        .kpis { display: flex; gap: 8px; margin-bottom: 20px; }
+        .kpi { background: #EAF1EE; border-left: 3px solid #6B7280; padding: 8px 10px; flex: 1; }
+        .kpi-label { color: #6B7280; font-size: 10px; }
+        .kpi-value { color: #002F22; font-size: 15px; font-weight: bold; margin-top: 2px; }
+        .cliente-card { border: 1px solid #DCE3E0; border-radius: 6px; padding: 10px 12px; margin-bottom: 8px; }
+        .cliente-nome { color: #002F22; font-weight: bold; font-size: 13px; }
+        .cliente-tipo { color: #6B7280; font-size: 11px; margin-bottom: 6px; }
+        .pendencia { padding: 5px 8px; border-radius: 4px; font-size: 11px; margin-top: 4px; }
+        .pendencia-comercial { background: #FEF3E2; color: #93450A; }
+        .pendencia-processual { background: #FDECEC; color: #A85A52; }
+        .pendencia-ok { color: #1E6B3D; font-size: 11px; }
+        .estrategico { color: #B4791A; font-size: 10px; }
+        .tabela-titulo { color: #002F22; font-size: 13px; margin: 22px 0 8px 0; }
+        .tabela-contagem { color: #6B7280; font-size: 11px; font-weight: normal; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th { background: #EAF1EE; color: #6B7280; text-align: left; padding: 6px 8px; font-weight: normal; }
+        td { padding: 6px 8px; border-top: 1px solid #DCE3E0; color: #1F2937; }
+        td.valor { text-align: right; color: #002F22; }
+        .status-badge { padding: 2px 8px; border-radius: 4px; display: inline-block; }
+      </style>
+      </head><body>
+        <h1>Painel de Acompanhamento — Monteiro e Monteiro</h1>
+        <div class="subtitulo">Relatório gerado em ${new Date().toLocaleDateString("pt-BR")}</div>
+        ${kpisHtml}
+        ${clientesHtml}
+        ${tabelaHtml}
+      </body></html>`;
 
     if (formato === "word") {
-      const html = `<html><meta charset="utf-8"><body><pre style="font-family:Arial,sans-serif;font-size:13px;white-space:pre-wrap;">${escapeHtml(texto)}</pre></body></html>`;
       const blob = new Blob([html], { type: "application/msword" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -5378,7 +5788,7 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
         setTimeout(() => setStatus(""), 3500);
         return;
       }
-      w.document.write(`<html><head><title>Painel de Acompanhamento</title></head><body><pre style="font-family:Arial,sans-serif;font-size:13px;white-space:pre-wrap;">${escapeHtml(texto)}</pre></body></html>`);
+      w.document.write(html);
       w.document.close();
       w.focus();
       w.print();
@@ -5560,6 +5970,12 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
         <MultiSelectFilter label="Pendência" options={["Documental", "Processual"]} selected={tipoPendencia} onChange={setTipoPendencia} />
         <MultiSelectFilter label="Estratégico" options={["Estratégico", "Não estratégico"]} selected={estrategico} onChange={setEstrategico} />
         <MultiSelectFilter label="Responsável" options={responsaveisDisponiveis} selected={responsavelFiltro} onChange={setResponsavelFiltro} />
+        {tipoCliente.includes("Entidade de classe") && (
+          <>
+            <MultiSelectFilter label="Abrangência" options={abrangenciasDisponiveis} selected={abrangenciaFiltro} onChange={setAbrangenciaFiltro} />
+            <MultiSelectFilter label="Categoria" options={categoriasDisponiveis} selected={categoriaFiltro} onChange={setCategoriaFiltro} />
+          </>
+        )}
         <div className="flex items-center border rounded px-2 flex-1 min-w-[180px]" style={{ borderColor: "#DCE3E0" }}>
           <Search size={15} style={{ color: "#9CA3AF" }} />
           <input
@@ -6041,6 +6457,24 @@ export default function PainelCliente() {
     setClients((prev) => prev.map((c) => (c.id !== clientId ? c : { ...c, advogadoInterno: valor })));
   };
 
+  const setAbrangencia = (clientId, valor) => {
+    setClients((prev) => prev.map((c) => (c.id !== clientId ? c : { ...c, abrangencia: valor })));
+  };
+
+  const setMunicipiosAbrangencia = (clientId, valor) => {
+    setClients((prev) => prev.map((c) => (c.id !== clientId ? c : { ...c, municipiosAbrangencia: valor })));
+  };
+
+  const setCategoria = (clientId, valor) => {
+    setClients((prev) => prev.map((c) => (c.id !== clientId ? c : { ...c, categoria: valor })));
+  };
+
+  const setParceiro = (clientId, dadosParceiro) => {
+    setClients((prev) =>
+      prev.map((c) => (c.id !== clientId ? c : { ...c, parceiro: { ...(c.parceiro || {}), ...dadosParceiro, passados: c.parceiro?.passados || [] } }))
+    );
+  };
+
   const setEstrategicoProcesso = (index, valor) => {
     setClients((prev) =>
       prev.map((c) =>
@@ -6133,6 +6567,10 @@ export default function PainelCliente() {
           onSetAgendorUrl={setAgendorUrl}
           onSetCnpj={setCnpj}
           onSetAdvogadoInterno={setAdvogadoInterno}
+          onSetAbrangencia={setAbrangencia}
+          onSetMunicipiosAbrangencia={setMunicipiosAbrangencia}
+          onSetCategoria={setCategoria}
+          onSetParceiro={setParceiro}
         />
       ) : (
         <ClientList tipo={tipo} setTipo={setTipo} onSelect={setSelectedId} />
