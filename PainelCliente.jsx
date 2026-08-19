@@ -5821,6 +5821,14 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
     })
     .filter((item) => item.deferimentosPendentes.length > 0);
 
+  const adesoesEntidades = clientsBase
+    .filter((c) => c.tipo === "entidade")
+    .map((c) => ({
+      cliente: c,
+      processosComAdesoes: (c.processos || []).filter((p) => (p.adesoes || []).length > 0),
+    }))
+    .filter((item) => item.processosComAdesoes.length > 0);
+
   const pendenciasHonorariosSecuritizacao = clientsBase
     .map((c) => ({
       cliente: c,
@@ -6014,6 +6022,54 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
         return;
       }
       w.document.write(html);
+      w.document.close();
+      w.focus();
+      w.print();
+    }
+  };
+
+  const gerarRelatorioAdesoes = (formato) => {
+    const linhas = adesoesEntidades.map(({ cliente, processosComAdesoes }) => {
+      const partes = [`${cliente.nome} (${tipoLabel[cliente.tipo]} · ${cliente.uf})`];
+      processosComAdesoes.forEach((p) => {
+        partes.push(`  ${p.materia}${p.numero ? ` — nº ${p.numero}` : ""}:`);
+        (p.adesoes || []).forEach((a) => {
+          const detalhes = [
+            a.valor ? `valor ${a.valor}` : null,
+            a.honorarios ? `honorários ${a.honorarios}` : null,
+            a.meioRecebimento ? `meio de recebimento: ${a.meioRecebimento}` : null,
+            a.data ? `adesão em ${a.data}` : null,
+            a.periodo ? `período: ${a.periodo}` : null,
+            a.temAcaoIndividual ? `ação individual: ${a.numeroAcaoIndividual || "nº não informado"}${a.periodoAcaoIndividual ? ` (período: ${a.periodoAcaoIndividual})` : ""}` : null,
+          ].filter(Boolean);
+          partes.push(`    ${a.nome}${detalhes.length ? ` — ${detalhes.join(" · ")}` : ""}`);
+        });
+      });
+      return partes.join("\n");
+    });
+    const totalAdesoes = adesoesEntidades.reduce(
+      (soma, { processosComAdesoes }) => soma + processosComAdesoes.reduce((s, p) => s + (p.adesoes || []).length, 0),
+      0
+    );
+    const texto = `Relatório de Adesões — Entidades de Classe — Monteiro e Monteiro\n\n${adesoesEntidades.length} entidade(s) com adesões cadastradas · ${totalAdesoes} adesão(ões) no total\n\n${linhas.join("\n\n")}`;
+
+    if (formato === "word") {
+      const html = `<html><meta charset="utf-8"><body><pre style="font-family:Arial,sans-serif;font-size:13px;white-space:pre-wrap;">${escapeHtml(texto)}</pre></body></html>`;
+      const blob = new Blob([html], { type: "application/msword" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "Relatorio Adesoes Entidades de Classe.doc";
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const w = window.open("", "_blank");
+      if (!w) {
+        setStatus("Não foi possível abrir a janela de impressão — permita pop-ups e tente novamente.");
+        setTimeout(() => setStatus(""), 3500);
+        return;
+      }
+      w.document.write(`<html><head><title>Relatório de Adesões — Entidades de Classe</title></head><body><pre style="font-family:Arial,sans-serif;font-size:13px;white-space:pre-wrap;">${escapeHtml(texto)}</pre></body></html>`);
       w.document.close();
       w.focus();
       w.print();
@@ -6339,6 +6395,26 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
         <button onClick={() => gerarRelatorio("pdf")} className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded text-white" style={{ background: INK }}>
           <FileText size={15} /> Gerar relatório (PDF)
         </button>
+        {tipoCliente.includes("Entidade de classe") && (
+          <>
+            <button
+              onClick={() => gerarRelatorioAdesoes("word")}
+              disabled={adesoesEntidades.length === 0}
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded text-white"
+              style={{ background: adesoesEntidades.length ? "#0C447C" : "#F0F0F0", color: adesoesEntidades.length ? "#FFFFFF" : "#9CA3AF" }}
+            >
+              <FileText size={15} /> Relatório de adesões (Entidades) — Word
+            </button>
+            <button
+              onClick={() => gerarRelatorioAdesoes("pdf")}
+              disabled={adesoesEntidades.length === 0}
+              className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded text-white"
+              style={{ background: adesoesEntidades.length ? "#0C447C" : "#F0F0F0", color: adesoesEntidades.length ? "#FFFFFF" : "#9CA3AF" }}
+            >
+              <FileText size={15} /> Relatório de adesões (Entidades) — PDF
+            </button>
+          </>
+        )}
         {materiaFiltro.includes("COMPREV") && (
           <>
             <button
