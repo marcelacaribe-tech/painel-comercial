@@ -6029,32 +6029,89 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
   };
 
   const gerarRelatorioAdesoes = (formato) => {
-    const linhas = adesoesEntidades.map(({ cliente, processosComAdesoes }) => {
-      const partes = [`${cliente.nome} (${tipoLabel[cliente.tipo]} · ${cliente.uf})`];
-      processosComAdesoes.forEach((p) => {
-        partes.push(`  ${p.materia}${p.numero ? ` — nº ${p.numero}` : ""}:`);
-        (p.adesoes || []).forEach((a) => {
-          const detalhes = [
-            a.valor ? `valor ${a.valor}` : null,
-            a.honorarios ? `honorários ${a.honorarios}` : null,
-            a.meioRecebimento ? `meio de recebimento: ${a.meioRecebimento}` : null,
-            a.data ? `adesão em ${a.data}` : null,
-            a.periodo ? `período: ${a.periodo}` : null,
-            a.temAcaoIndividual ? `ação individual: ${a.numeroAcaoIndividual || "nº não informado"}${a.periodoAcaoIndividual ? ` (período: ${a.periodoAcaoIndividual})` : ""}` : null,
-          ].filter(Boolean);
-          partes.push(`    ${a.nome}${detalhes.length ? ` — ${detalhes.join(" · ")}` : ""}`);
-        });
-      });
-      return partes.join("\n");
-    });
     const totalAdesoes = adesoesEntidades.reduce(
       (soma, { processosComAdesoes }) => soma + processosComAdesoes.reduce((s, p) => s + (p.adesoes || []).length, 0),
       0
     );
-    const texto = `Relatório de Adesões — Entidades de Classe — Monteiro e Monteiro\n\n${adesoesEntidades.length} entidade(s) com adesões cadastradas · ${totalAdesoes} adesão(ões) no total\n\n${linhas.join("\n\n")}`;
+    const comAcaoIndividual = adesoesEntidades.reduce(
+      (soma, { processosComAdesoes }) =>
+        soma + processosComAdesoes.reduce((s, p) => s + (p.adesoes || []).filter((a) => a.temAcaoIndividual).length, 0),
+      0
+    );
+    const valorTotalAdesoes = adesoesEntidades.reduce(
+      (soma, { processosComAdesoes }) =>
+        soma + processosComAdesoes.reduce((s, p) => s + (p.adesoes || []).reduce((sv, a) => sv + parseValorBR(a.valor), 0), 0),
+      0
+    );
+
+    const kpisHtml = `
+      <div class="kpis">
+        <div class="kpi" style="border-left-color:#0C447C"><div class="kpi-label">Entidades com adesões</div><div class="kpi-value">${adesoesEntidades.length}</div></div>
+        <div class="kpi" style="border-left-color:#534AB7"><div class="kpi-label">Adesões no total</div><div class="kpi-value">${totalAdesoes}</div></div>
+        <div class="kpi" style="border-left-color:#93450A"><div class="kpi-label">Com ação individual</div><div class="kpi-value">${comAcaoIndividual}</div></div>
+        <div class="kpi" style="border-left-color:#1E6B3D"><div class="kpi-label">Valor total das adesões</div><div class="kpi-value">${currency(valorTotalAdesoes)}</div></div>
+      </div>`;
+
+    const entidadesHtml = adesoesEntidades.map(({ cliente, processosComAdesoes }) => {
+      const processosHtml = processosComAdesoes.map((p) => {
+        const linhasAdesao = (p.adesoes || []).map((a) => `
+          <tr>
+            <td>${escapeHtml(a.nome || "")}</td>
+            <td class="valor">${a.valor ? currency(parseValorBR(a.valor)) : "—"}</td>
+            <td>${escapeHtml(a.honorarios || "—")}</td>
+            <td>${escapeHtml(a.meioRecebimento || "—")}</td>
+            <td>${escapeHtml(a.data || "—")}</td>
+            <td>${escapeHtml(a.periodo || "—")}</td>
+            <td>${a.temAcaoIndividual ? `<span class="acao-individual">${escapeHtml(a.numeroAcaoIndividual || "nº não informado")}${a.periodoAcaoIndividual ? ` (${escapeHtml(a.periodoAcaoIndividual)})` : ""}</span>` : "—"}</td>
+          </tr>`).join("");
+
+        return `
+          <div class="processo-titulo">${escapeHtml(p.materia || "")}${p.numero ? ` — nº ${escapeHtml(p.numero)}` : ""}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Associado</th><th style="text-align:right">Valor</th><th>Honorários</th><th>Meio de recebimento</th><th>Data</th><th>Período</th><th>Ação individual</th>
+              </tr>
+            </thead>
+            <tbody>${linhasAdesao}</tbody>
+          </table>`;
+      }).join("");
+
+      return `
+        <div class="cliente-card">
+          <div class="cliente-nome">${escapeHtml(cliente.nome)}</div>
+          <div class="cliente-tipo">${tipoLabel[cliente.tipo]} · ${cliente.uf}</div>
+          ${processosHtml}
+        </div>`;
+    }).join("");
+
+    const html = `<html><head><meta charset="utf-8"><title>Relatório de Adesões — Entidades de Classe</title>
+      <style>
+        body { font-family: Calibri, Arial, sans-serif; color: #1F2937; margin: 28px; }
+        h1 { color: #002F22; font-size: 20px; margin: 0 0 2px 0; }
+        .subtitulo { color: #6B7280; font-size: 12px; margin-bottom: 18px; }
+        .kpis { display: flex; gap: 8px; margin-bottom: 20px; }
+        .kpi { background: #EAF1EE; border-left: 3px solid #6B7280; padding: 8px 10px; flex: 1; }
+        .kpi-label { color: #6B7280; font-size: 10px; }
+        .kpi-value { color: #002F22; font-size: 15px; font-weight: bold; margin-top: 2px; }
+        .cliente-card { border: 1px solid #DCE3E0; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
+        .cliente-nome { color: #002F22; font-weight: bold; font-size: 13px; }
+        .cliente-tipo { color: #6B7280; font-size: 11px; margin-bottom: 8px; }
+        .processo-titulo { color: #002F22; font-size: 12px; font-weight: bold; margin: 10px 0 6px 0; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 6px; }
+        th { background: #EAF1EE; color: #6B7280; text-align: left; padding: 6px 8px; font-weight: normal; }
+        td { padding: 6px 8px; border-top: 1px solid #DCE3E0; color: #1F2937; }
+        td.valor { text-align: right; color: #002F22; }
+        .acao-individual { color: #0C447C; }
+      </style>
+      </head><body>
+        <h1>Relatório de Adesões — Entidades de Classe — Monteiro e Monteiro</h1>
+        <div class="subtitulo">Relatório gerado em ${new Date().toLocaleDateString("pt-BR")}</div>
+        ${kpisHtml}
+        ${entidadesHtml || `<p style="color:#6B7280">Nenhuma entidade com adesões cadastradas no momento.</p>`}
+      </body></html>`;
 
     if (formato === "word") {
-      const html = `<html><meta charset="utf-8"><body><pre style="font-family:Arial,sans-serif;font-size:13px;white-space:pre-wrap;">${escapeHtml(texto)}</pre></body></html>`;
       const blob = new Blob([html], { type: "application/msword" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -6069,7 +6126,7 @@ function PainelExecutivo({ clients, onClose, onSelectClient, apenasMeusProcessos
         setTimeout(() => setStatus(""), 3500);
         return;
       }
-      w.document.write(`<html><head><title>Relatório de Adesões — Entidades de Classe</title></head><body><pre style="font-family:Arial,sans-serif;font-size:13px;white-space:pre-wrap;">${escapeHtml(texto)}</pre></body></html>`);
+      w.document.write(html);
       w.document.close();
       w.focus();
       w.print();
